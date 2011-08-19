@@ -647,7 +647,7 @@ class Literal(Identifier):
         if convFunc:
             rt = convFunc(self)
         else:
-            rt = self
+            rt = unicode(self)
         return rt
 
     def _toCompareValue(self):

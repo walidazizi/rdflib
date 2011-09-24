@@ -22,7 +22,7 @@ myNS = Namespace('#')
 
 primer.add((myNS.pat, myNS.knows, myNS.jo))
 # or:
-primer.add((myNS['pat'], myNS['age'], long(24)))
+primer.add((myNS['pat'], myNS['age'], int(24)))
 
 
 # Now, with just that, lets see how the system
@@ -126,7 +126,7 @@ primer.parse(sourceCode, format='n3')
 
 # or spit it back out (mostly) the way we created it:
 
-print primer.serialize(format='n3')
+print(primer.serialize(format='n3'))
 
 # for more insight into things already done, lets see the namespaces
 

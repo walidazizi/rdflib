@@ -4,8 +4,6 @@
 Merging graphs
 ==============
 
-.. warning:: Elderly examples pertains to earlier versions of rdflib.
-
 Example 1
 ---------
 
@@ -15,7 +13,7 @@ Example 1
 
     _logger = logging.getLogger(redfoot_current)
 
-    from rdflib.graph import Graph
+    from rdflib.Graph import Graph
 
     f = file(args[0], "r")
 
@@ -105,17 +103,20 @@ Example 2
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
     '''
 
-    from rdflib import URIRef, Literal, BNode, Namespace
+    from rdflib.URIRef import URIRef
+    from rdflib.Literal import Literal
+    from rdflib.BNode import BNode
+    from rdflib.Namespace import Namespace
 
-    # Import RDFLib's default Graph implementation.
-    from rdflib.graph import Graph
+    # Import RDFLib's default TripleStore implementation.
+    from rdflib.TripleStore import TripleStore
 
     inputFileName1 = 'vc-db-3.rdf'
     inputFileName2 = 'vc-db-4.rdf'
 
-    store = Graph()
-    store.psrse(inputFileName1)
-    store.parse(inputFileName2)
+    store = TripleStore()
+    store.load(inputFileName1)
+    store.load(inputFileName2)
 
     print store.serialize()
 

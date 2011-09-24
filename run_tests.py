@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Testing with Nose
 =================
@@ -51,6 +49,8 @@ NOSE_ARGS = [
 COVERAGE_EXTRA_ARGS = [
         '--cover-package=rdflib',
         '--cover-inclusive',
+        '--cover-html-dir=coverage',
+        '--cover-html' 
     ]
 
 DEFAULT_ATTRS = [] # ['!known_issue', '!sparql']
@@ -63,18 +63,18 @@ if __name__ == '__main__':
     from sys import argv, exit, stderr
     try: import nose
     except ImportError:
-        print >>stderr, """\
+        print("""\
     Requires Nose. Try:
 
         $ sudo easy_install nose
 
-    Exiting. """; exit(1)
+    Exiting. """, file=stderr); exit(1)
 
 
     if '--with-coverage' in argv:
         try: import coverage
         except ImportError:
-            print >>stderr, "No coverage module found, skipping code coverage."
+            print("No coverage module found, skipping code coverage.", file=stderr)
             argv.remove('--with-coverage')
         else:
             NOSE_ARGS += COVERAGE_EXTRA_ARGS
@@ -88,5 +88,5 @@ if __name__ == '__main__':
 
 
     finalArgs = argv + NOSE_ARGS
-    print "Running nose with:", " ".join(finalArgs[1:])
+    print("Running nose with:", " ".join(finalArgs[1:]))
     nose.run_exit(argv=finalArgs)

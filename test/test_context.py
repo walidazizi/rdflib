@@ -19,16 +19,16 @@ class ContextTestCase(unittest.TestCase):
         else:
             path = a_tmp_dir = mkdtemp()
         self.graph.open(path, create=True)
-        self.michel = URIRef(u'michel')
-        self.tarek = URIRef(u'tarek')
-        self.bob = URIRef(u'bob')
-        self.likes = URIRef(u'likes')
-        self.hates = URIRef(u'hates')
-        self.pizza = URIRef(u'pizza')
-        self.cheese = URIRef(u'cheese')
+        self.michel = URIRef('michel')
+        self.tarek = URIRef('tarek')
+        self.bob = URIRef('bob')
+        self.likes = URIRef('likes')
+        self.hates = URIRef('hates')
+        self.pizza = URIRef('pizza')
+        self.cheese = URIRef('cheese')
 
-        self.c1 = URIRef(u'context-1')
-        self.c2 = URIRef(u'context-2')
+        self.c1 = URIRef('context-1')
+        self.c2 = URIRef('context-2')
 
         # delete the graph for each test!
         self.graph.remove((None, None, None))
@@ -165,10 +165,10 @@ class ContextTestCase(unittest.TestCase):
         self.addStuffInMultipleContexts()
         def cid(c):
             return c.identifier
-        self.assert_(self.c1 in map(cid, self.graph.contexts()))
-        self.assert_(self.c2 in map(cid, self.graph.contexts()))
+        self.assert_(self.c1 in list(map(cid, self.graph.contexts())))
+        self.assert_(self.c2 in list(map(cid, self.graph.contexts())))
 
-        contextList = map(cid, list(self.graph.contexts(triple)))
+        contextList = list(map(cid, list(self.graph.contexts(triple))))
         self.assert_(self.c1 in contextList)
         self.assert_(self.c2 in contextList)
 

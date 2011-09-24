@@ -19,35 +19,43 @@ class NTSerializer(Serializer):
             warnings.warn("NTSerializer does not use custom encoding.")
         encoding = self.encoding
         for triple in self.store:
-            stream.write(_nt_row(triple).encode(encoding, "replace"))
+            stream.write(_nt_row(triple))#.encode(encoding, "replace"))
         stream.write("\n")
 
 
 def _nt_row(triple):
-    return u"%s %s %s .\n" % (triple[0].n3(),
-            triple[1].n3(),
-            _xmlcharref_encode(triple[2].n3()))
+    
+    #~ print()
+    #~ print('_nt_row: ', triple[0])
+    #~ print('_nt_row: ', triple[0].n3())
+    #~ print('_nt_row: ', triple[1])
+    #~ print('_nt_row: ', triple[1].n3())
+    #~ print('_nt_row: ', triple[2])
+    #~ print('_nt_row: ', triple[2].n3())
+    #~ print()
+    
+    return "%s %s %s .\n" % (
+            triple[0].n3(), #Traduco il soggetto della tripletta in formato N3
+            triple[1].n3(), #Traduco il predicato della tripletta in formato N3
+            triple[2].n3() #Traduco l'oggetto della tripletta in formato N3
+            #~ _xmlcharref_encode(triple[2].n3())
+            )
 
 # from <http://code.activestate.com/recipes/303668/>
-def _xmlcharref_encode(unicode_data, encoding="ascii"):
-    """Emulate Python 2.3's 'xmlcharrefreplace' encoding error handler."""
-    chars = []
-
-    # nothing to do about xmlchars, but replace newlines with escapes: 
-    unicode_data=unicode_data.replace("\n","\\n")
-    if unicode_data.startswith('"""'):
-        unicode_data = unicode_data.replace('"""', '"')
-
-    # Step through the unicode_data string one character at a time in
-    # order to catch unencodable characters:
-    for char in unicode_data:
-        try:
-            chars.append(char.encode(encoding, 'strict'))
-        except UnicodeError:
-            if ord(char) <= 0xFFFF:
-                chars.append('\u%04X' % ord(char))
-            else:
-                chars.append('\U%08X' % ord(char))
-
-    return ''.join(chars)
+#~ def _xmlcharref_encode(unicode_data, encoding="ascii"):
+    #~ """Emulate Python 2.3's 'xmlcharrefreplace' encoding error handler."""
+    #~ chars = []
+#~ 
+    #~ # nothing to do about xmlchars, but replace newlines with escapes: 
+    #~ unicode_data=unicode_data.replace("\n","\\n")
+    #~ if unicode_data.startswith('"""'): unicode_data=unicode_data[2:-2]
+#~ 
+    #~ # Step through the unicode_data string one character at a time in
+    #~ # order to catch unencodable characters:
+    #~ for char in unicode_data:
+        #~ try:
+            #~ chars.append(char.encode(encoding, 'strict'))
+        #~ except UnicodeError:
+            #~ chars.append('%04X' % ord(char))
+    #~ return ''.join(chars)
 

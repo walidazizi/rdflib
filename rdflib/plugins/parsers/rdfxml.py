@@ -34,7 +34,7 @@
 from xml.sax import make_parser
 from xml.sax.handler import ErrorHandler
 from xml.sax.saxutils import handler, quoteattr, escape
-from urlparse import urljoin, urldefrag
+from urllib.parse import urljoin, urldefrag
 
 from rdflib.namespace import RDF, is_ncname
 from rdflib.term import URIRef
@@ -191,7 +191,8 @@ class RDFXMLHandler(handler.ContentHandler):
     def processingInstruction(self, target, data):
         pass
 
-    def add_reified(self, sid, (s, p, o)):
+    def add_reified(self, sid, xxx_todo_changeme):
+        (s, p, o) = xxx_todo_changeme
         self.store.add((sid, RDF.type, RDF.Statement))
         self.store.add((sid, RDF.subject, s))
         self.store.add((sid, RDF.predicate, p))
@@ -232,8 +233,14 @@ class RDFXMLHandler(handler.ContentHandler):
             name = URIRef(name[1])
         else:
             name = URIRef("".join(name))
+        
         atts = {}
-        for (n, v) in attrs.items(): #attrs._attrs.iteritems(): #
+        for (n, v) in list(attrs.items()): #attrs._attrs.iteritems(): #
+            
+            #~ print('\n------------\nconvert')
+            #~ print(n)
+            #~ print(v)
+            
             if n[0] is None:
                 att = URIRef(n[1])
             else:
@@ -249,7 +256,10 @@ class RDFXMLHandler(handler.ContentHandler):
 
     def document_element_start(self, name, qname, attrs):
         if name[0] and URIRef("".join(name)) == RDF.RDF:
+            
+            #~ next = self.__next__
             next = self.next
+            
             next.start = self.node_element_start
             next.end = self.node_element_end
         else:
@@ -263,7 +273,10 @@ class RDFXMLHandler(handler.ContentHandler):
         name, atts = self.convert(name, qname, attrs)
         current = self.current
         absolutize = self.absolutize
+        
+        #~ next = self.__next__
         next = self.next
+            
         next.start = self.property_element_start
         next.end = self.property_element_end
 
@@ -311,7 +324,7 @@ class RDFXMLHandler(handler.ContentHandler):
                 predicate = absolutize(att)
                 try:
                     object = Literal(atts[att], language)
-                except Error, e:
+                except Error as e:
                     self.error(e.msg)
             elif att==RDF.type: #S2
                 predicate = RDF.type
@@ -325,7 +338,7 @@ class RDFXMLHandler(handler.ContentHandler):
                 predicate = absolutize(att)
                 try:
                     object = Literal(atts[att], language)
-                except Error, e:
+                except Error as e:
                     self.error(e.msg)
             self.store.add((subject, predicate, object))
 
@@ -339,7 +352,10 @@ class RDFXMLHandler(handler.ContentHandler):
         name, atts = self.convert(name, qname, attrs)
         current = self.current
         absolutize = self.absolutize
+        
+        #~ next = self.__next__
         next = self.next
+        
         object = None
         current.data = None
         current.list = None
@@ -511,7 +527,7 @@ class RDFXMLHandler(handler.ContentHandler):
         else:
             current.object = "<%s" % name[1]
 
-        for (name, value) in attrs.items():
+        for (name, value) in list(attrs.items()):
             if name[0]:
                 if not name[0] in current.declared:
                     current.declared[name[0]] = self._current_context[name[0]]
@@ -528,11 +544,11 @@ class RDFXMLHandler(handler.ContentHandler):
         if name[0]:
             prefix = self._current_context[name[0]]
             if prefix:
-                end = u"</%s:%s>" % (prefix, name[1])
+                end = "</%s:%s>" % (prefix, name[1])
             else:
-                end = u"</%s>" % name[1]
+                end = "</%s>" % name[1]
         else:
-            end = u"</%s>" % name[1]
+            end = "</%s>" % name[1]
         self.parent.object += self.current.object + end
 
 
@@ -567,6 +583,7 @@ class RDFXMLParser(Parser):
         # We're only using it once now
         #content_handler.reset()
         #self._parser.reset()
+        
         self._parser.parse(source)
 
 

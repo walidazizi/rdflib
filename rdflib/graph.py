@@ -40,16 +40,16 @@ via triple pattern:
     
     >>> g = Graph('IOMemory')
     >>> statementId = BNode()
-    >>> print len(g)
+    >>> print (len(g))
     0
     >>> g.add((statementId, RDF.type, RDF.Statement))
     >>> g.add((statementId, RDF.subject, URIRef('http://rdflib.net/store/ConjunctiveGraph')))
     >>> g.add((statementId, RDF.predicate, RDFS.label))
     >>> g.add((statementId, RDF.object, Literal("Conjunctive Graph")))
-    >>> print len(g)
+    >>> print (len(g))
     4
     >>> for s, p, o in g:
-    ...     print type(s)
+    ...  print (type(s))
     ...
     <class 'rdflib.term.BNode'>
     <class 'rdflib.term.BNode'>
@@ -57,11 +57,11 @@ via triple pattern:
     <class 'rdflib.term.BNode'>
     
     >>> for s, p, o in g.triples((None, RDF.object, None)):
-    ...     print o
+    ...  print (o)
     ...
     Conjunctive Graph
     >>> g.remove((statementId, RDF.type, RDF.Statement))
-    >>> print len(g)
+    >>> print (len(g))
     3
 
 None terms in calls to triple can be thought of as "open variables".
@@ -117,7 +117,7 @@ Parsing N3 from StringIO
     ...   rdf:object "Conjunctive Graph" ] .
     ... '''
     >>> g2 = g2.parse(StringIO(src), format='n3')
-    >>> print len(g2)
+    >>> print (len(g2))
     4
 
 Using Namespace class:
@@ -130,9 +130,10 @@ Using Namespace class:
 
 """
 
-from __future__ import generators
+
 
 import logging
+from functools import reduce
 _logger = logging.getLogger(__name__)
 
 #import md5
@@ -142,12 +143,10 @@ import warnings
 try:
     from hashlib import md5
 except ImportError:
-    from md5 import md5    
+    from md5 import md5 
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+from io import StringIO, BytesIO
+
 def describe(terms,bindings,graph):
     """ 
     Default DESCRIBE returns all incomming and outgoing statements about the given terms 
@@ -178,7 +177,7 @@ from rdflib.parser import create_input_source
 from rdflib.namespace import NamespaceManager
 
 import tempfile, shutil, os
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 
 class Graph(Node):
@@ -194,8 +193,7 @@ class Graph(Node):
     provenance.
 
     The Graph constructor can take an identifier which identifies the Graph
-    by name.  If none is given, the graph is assigned a BNode for its 
-    identifier.
+    by name.  If none is given, the graph is assigned a BNode for its identifier.
     For more on named graphs, see: http://www.w3.org/2004/03/trix/
 
     Ontology for __str__ provenance terms::
@@ -260,11 +258,11 @@ class Graph(Node):
         
     """
 
-    def __init__(self, store='default', identifier=None,
-                 namespace_manager=None):
+    def __init__(self, store='default', identifier=None, namespace_manager=None):
         super(Graph, self).__init__()
         self.__identifier = identifier or BNode()
         if not isinstance(store, Store):
+            
             # TODO: error handling
             self.__store = store = plugin.get(store, Store)()
         else:
@@ -328,8 +326,14 @@ class Graph(Node):
         """
         self.__store.close(commit_pending_transaction=commit_pending_transaction)
 
-    def add(self, (s, p, o)):
+    def add(self, triple):
         """Add a triple with self as context"""
+        (s, p, o) = triple
+        
+        #~ If the object is not a node (for example a Python string or a number)
+        #~ I transform it in a Literal
+        if not isinstance(o, Node): o = Literal(o)
+        
         self.__store.add((s, p, o), self, quoted=False)
 
     def addN(self, quads):
@@ -338,21 +342,22 @@ class Graph(Node):
                                         if isinstance(c, Graph)
                                         and c.identifier is self.identifier])
 
-    def remove(self, (s, p, o)):
+    def remove(self, triple):
         """Remove a triple from the graph
 
         If the triple does not provide a context attribute, removes the triple
         from all contexts.
         """
+        (s, p, o) = triple
         self.__store.remove((s, p, o), context=self)
 
-    def triples(self, (s, p, o)):
+    def triples(self, triple):
         """Generator over the triple store
 
         Returns triples that match the given triple pattern. If triple pattern
         does not provide a context, all contexts will be searched.
         """
-        for (s, p, o), cg in self.__store.triples((s, p, o), context=self):
+        for (s, p, o), cg in self.__store.triples(triple, context=self):
             yield (s, p, o)
 
     def __len__(self):
@@ -429,21 +434,15 @@ class Graph(Node):
                 retval.add(x)
         return retval
 
-    def __xor__(self,other):
-        """Set theoretical XOR"""
-        return (self - other) + (other - self)
-    
-    __or__ = __add__
-    __and__ = __mul__
-
     # Conv. methods
 
-    def set(self, (subject, predicate, object)):
+    def set(self, triple):
         """Convenience method to update the value of object
 
         Remove any existing triples for subject and predicate before adding
         (subject, predicate, object).
         """
+        (subject, predicate, object) = triple
         self.remove((subject, predicate, None))
         self.add((subject, predicate, object))
 
@@ -477,7 +476,8 @@ class Graph(Node):
         for s, p, o in self.triples((subject, None, None)):
             yield p, o
 
-    def triples_choices(self, (subject, predicate, object_),context=None):
+    def triples_choices(self, triple,context=None):
+        (subject, predicate, object_) = triple
         for (s, p, o), cg in self.store.triples_choices(
             (subject, predicate, object_), context=self):
             yield (s, p, o)
@@ -492,11 +492,12 @@ class Graph(Node):
         It is one of those situations that occur a lot, hence this
         'macro' like utility
 
-        Parameters:
+        :Parameters:
+
         subject, predicate, object  -- exactly one must be None
         default -- value to be returned if no values found
-        any -- if True, return any value in the case there is more than one, 
-        else, raise UniquenessError
+        any -- if True: return any value in the case there is more than one
+               else: raise UniquenessError
         """
         retval = default
 
@@ -513,23 +514,22 @@ class Graph(Node):
             values = self.predicates(subject, object)
 
         try:
-            retval = values.next()
-        except StopIteration, e:
+            retval = values.__next__()
+        except StopIteration as e:
             retval = default
         else:
             if any is False:
                 try:
-                    next = values.next()
-                    msg = ("While trying to find a value for (%s, %s, %s) the"
-                           " following multiple values where found:\n" %
+                    next = values.__next__()
+                    msg = ("While trying to find a value for (%s, %s, %s) the "
+                           "following multiple values where found:\n" %
                            (subject, predicate, object))
-                    triples = self.store.triples(
-                                        (subject, predicate, object), None)
+                    triples = self.store.triples((subject, predicate, object), None)
                     for (s, p, o), contexts in triples:
                         msg += "(%s, %s, %s)\n (contexts: %s)\n" % (
                             s, p, o, list(contexts))
                     raise exceptions.UniquenessError(msg)
-                except StopIteration, e:
+                except StopIteration as e:
                     pass
         return retval
 
@@ -579,13 +579,13 @@ class Graph(Node):
         >>> g.add((c,RDF.first,RDFS.comment))
         >>> g.add((c,RDF.rest,RDF.nil))
         >>> def topList(node,g):
-        ...    for s in g.subjects(RDF.rest,node):
-        ...       yield s
+        ... for s in g.subjects(RDF.rest,node):
+        ...    yield s
         >>> def reverseList(node,g):
-        ...    for f in g.objects(node,RDF.first):
-        ...       print f
-        ...    for s in g.subjects(RDF.rest,node):
-        ...       yield s
+        ... for f in g.objects(node,RDF.first):
+        ...    print (f)
+        ... for s in g.subjects(RDF.rest,node):
+        ...    yield s
         
         >>> [rt for rt in g.transitiveClosure(topList,RDF.nil)]
         [rdflib.term.BNode('baz'), rdflib.term.BNode('bar'), rdflib.term.BNode('foo')]
@@ -603,10 +603,10 @@ class Graph(Node):
                 yield rt_2
 
     def transitive_objects(self, subject, property, remember=None):
-        """Transitively generate objects for the ``property`` relationship
+        """Transitively generate objects for the `property` relationship
 
         Generated objects belong to the depth first transitive closure of the
-        ``property`` relationship starting at ``subject``.
+        `property` relationship starting at `subject`.
         """
         if remember is None:
             remember = {}
@@ -619,10 +619,10 @@ class Graph(Node):
                 yield o
 
     def transitive_subjects(self, predicate, object, remember=None):
-        """Transitively generate objects for the ``property`` relationship
+        """Transitively generate objects for the `property` relationship
 
         Generated objects belong to the depth first transitive closure of the
-        ``property`` relationship starting at ``subject``.
+        `property` relationship starting at `subject`.
         """
         if remember is None:
             remember = {}
@@ -647,8 +647,8 @@ class Graph(Node):
     def qname(self, uri):
         return self.namespace_manager.qname(uri)
 
-    def compute_qname(self, uri, generate=True):
-        return self.namespace_manager.compute_qname(uri, generate)
+    def compute_qname(self, uri):
+        return self.namespace_manager.compute_qname(uri)
 
     def bind(self, prefix, namespace, override=True):
         """Bind prefix to namespace
@@ -656,8 +656,7 @@ class Graph(Node):
         If override is True will bind namespace to given prefix if namespace
         was already bound to a different prefix.
         """
-        return self.namespace_manager.bind(
-                            prefix, namespace, override=override)
+        return self.namespace_manager.bind(prefix, namespace, override=override)
 
     def namespaces(self):
         """Generator over all the prefix, namespace tuples"""
@@ -668,20 +667,16 @@ class Graph(Node):
         """Turn uri into an absolute URI if it's not one already"""
         return self.namespace_manager.absolutize(uri, defrag)
 
-    def serialize(
-                self, destination=None, format="xml", 
-                base=None, encoding=None, **args):
+    def serialize(self, destination=None, format="xml", base=None, encoding=None, **args):
         """Serialize the Graph to destination
 
         If destination is None serialize method returns the serialization as a
         string. Format defaults to xml (AKA rdf/xml).
-
-        Format support can be extended with plugins, 
-        but 'xml', 'n3', 'turtle', 'nt', 'pretty-xml', trix' are built in.
         """
         serializer = plugin.get(format, Serializer)(self)
         if destination is None:
             stream = StringIO()
+            #~ stream = BytesIO()
             serializer.serialize(stream, base=base, encoding=encoding, **args)
             return stream.getvalue()
         if hasattr(destination, "write"):
@@ -691,8 +686,7 @@ class Graph(Node):
             location = destination
             scheme, netloc, path, params, query, fragment = urlparse(location)
             if netloc!="":
-                print("WARNING: not saving as location" + \
-                      "is not a local file reference")
+                print("WARNING: not saving as location is not a local file reference")
                 return
             name = tempfile.mktemp()
             stream = open(name, 'wb')
@@ -705,32 +699,23 @@ class Graph(Node):
                 os.remove(name)
 
     def parse(self, source=None, publicID=None, format=None,
-              location=None, file=None, data=None, **args):
+              location=None, file_input=None, data=None, **args):
         """
         Parse source adding the resulting triples to the Graph.
 
         The source is specified using one of source, location, file or
         data.
 
-        :Parameters: 
-        
-          - `source`: An InputSource, file-like object, or string. In the case 
-            of a string the string is the location of the source.
-          - `location`: A string indicating the relative or absolute URL of the 
-            source. Graph's absolutize method is used if a relative location 
-            is specified.
-          - `file`: A file-like object.
-          - `data`: A string containing the data to be parsed.
-          - `format`: Used if format can not be determined from source. 
-            Defaults to rdf/xml. Format support can be extended with plugins, 
-            but 'xml', 'n3', 'nt', 'trix', 'rdfa' are built in.
-          - `publicID`: the logical URI to use as the document base. If None 
-            specified the document location is used (at least in the case where 
-            there is a document location).
+        :Parameters: - `source`: An InputSource, file-like object, or string. In the case of a string the string is the location of the source.
+                     - `location`: A string indicating the relative or absolute URL of the source. Graph's absolutize method is used if a relative location is specified.
+                     - `file_input`: A file-like object.
+                     - `data`: A string containing the data to be parsed.
+                     - `format`: Used if format can not be determined from source. Defaults to rdf/xml.
+                     - `publicID`: the logical URI to use as the document base. If None specified the document location is used (at least in the case where there is a document location).
 
         :Returns:
 
-          - self, the graph instance.
+        self, the graph instance.
 
         Examples:
 
@@ -740,15 +725,16 @@ class Graph(Node):
         ...   xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'
         ... >
         ...   <rdf:Description>
-        ...     <rdfs:label>Example</rdfs:label>
-        ...     <rdfs:comment>This is really just an example.</rdfs:comment>
+        ...  <rdfs:label>Example</rdfs:label>
+        ...  <rdfs:comment>This is really just an example.</rdfs:comment>
         ...   </rdf:Description>
         ... </rdf:RDF>
         ... '''
         >>> import tempfile
         >>> file_name = tempfile.mktemp()
-        >>> f = file(file_name, "w")
-        >>> f.write(my_data)
+        >>> f = open(file_name, "w")
+        >>> if f.write(my_data) <= 0:
+        ...     raise IOException('Nothing was written on the file!!!')
         >>> f.close()
 
         >>> g = Graph()
@@ -762,7 +748,7 @@ class Graph(Node):
         2
 
         >>> g = Graph()
-        >>> result = g.parse(file=file(file_name, "r"), format="application/rdf+xml")
+        >>> result = g.parse(file_input=open(file_name, "r"), format="application/rdf+xml")
         >>> len(g)
         2
 
@@ -771,37 +757,41 @@ class Graph(Node):
         if format=="xml":
             # warn... backward compat.
             format = "application/rdf+xml"
-        source = create_input_source(source=source, publicID=publicID, 
-                                     location=location, file=file, 
-                                     data=data, format=format)
+        
+        #~ Create the input sourse where I take the data from
+        source = create_input_source(source=source, publicID=publicID, location=location, file_input=file_input, data=data, format=format)
+        
         if format is None:
             format = source.content_type
         if format is None:
-            #raise Exception("Could not determine format for %r. You can" + \ 
-            # "expicitly specify one with the format argument." % source)
+            #raise Exception("Could not determin format for %r. You can expicitly specify one with the format argument." % source)
             format = "application/rdf+xml"
+        
+        #~ Get the appropriate parser
         parser = plugin.get(format, Parser)()
+        
+        #~ print('-----Graph.parse---------')
+        #~ print(parser)
+        
+        #~ Launch the parser
         parser.parse(source, self, **args)
+        
+        #~ print('Fine Graph\n')
+        
+        #~ Return the graph
         return self
 
     def load(self, source, publicID=None, format="xml"):
         self.parse(source, publicID, format)
 
-    def query(self, query_object, processor='sparql', result='sparql', initNs={}, initBindings={}, use_store_provided=True, **kwargs):
+    def query(self, query_object, processor='sparql', result='sparql', initNs={}, initBindings={}):
         """
         """
-
-        
-
-        if hasattr(self.store, "query") and use_store_provided:
-            return self.store.query(self,query_object, initNs, initBindings, **kwargs)
-
-        if not isinstance(result, query.Result):
-            result = plugin.get(result, query.Result)
         if not isinstance(processor, query.Processor):
             processor = plugin.get(processor, query.Processor)(self)
-
-        return result(processor.query(query_object, initBindings, initNs, **kwargs))
+        if not isinstance(result, query.Result):
+            result = plugin.get(result, query.Result)
+        return result(processor.query(query_object, initBindings, initNs))
 
 
     def n3(self):
@@ -841,9 +831,6 @@ class Graph(Node):
 
         # take a random one, could also always take the first one, doesn't
         # really matter.
-        if not all_nodes: 
-            return False
-
         visiting = [all_nodes[random.randrange(len(all_nodes))]]
         while visiting:
             x = visiting.pop()
@@ -869,18 +856,7 @@ class Graph(Node):
         return allNodes
 
 class ConjunctiveGraph(Graph):
-    """
-    A ConjunctiveGraph is an (unamed) aggregation of all the named graphs 
-    within the Store. It has a ``default`` graph, whose name is associated 
-    with the ConjunctiveGraph throughout its life. All methods work against 
-    this default graph. Its constructor can take an identifier to use as the 
-    name of this default graph or it will assign a BNode. 
-    
-    In practice, it is typical to instantiate a ConjunctiveGraph if you want 
-    to add triples to the Store but don't care to mint a URI for the graph. 
-    Any triples in the graph can still be addressed.
-    """
-    
+
     def __init__(self, store='default', identifier=None):
         super(ConjunctiveGraph, self).__init__(store)
         assert self.store.context_aware, ("ConjunctiveGraph must be backed by"
@@ -903,31 +879,36 @@ class ConjunctiveGraph(Graph):
             return True
         return False
 
-    def add(self, (s, p, o)):
+    def add(self, triple):
         """Add the triple to the default context"""
+        (s, p, o) = triple
         self.store.add((s, p, o), context=self.default_context, quoted=False)
 
     def addN(self, quads):
         """Add a sequence of triples with context"""
         self.store.addN([quad for quad in quads if quad not in self])
 
-    def remove(self, (s, p, o)):
+    def remove(self, triple):
         """Removes from all its contexts"""
+        (s, p, o) = triple
         self.store.remove((s, p, o), context=None)
 
-    def triples(self, (s, p, o), context=None):
+    def triples(self, triple, context=None):
         """Iterate over all the triples in the entire conjunctive graph"""
+        (s, p, o) = triple
         for (s, p, o), cg in self.store.triples((s, p, o), context=context):
             yield s, p, o
 
-    def quads(self,(s,p,o)):
+    def quads(self, triple):
         """Iterate over all the quads in the entire conjunctive graph"""
+        (s,p,o) = triple
         for (s, p, o), cg in self.store.triples((s, p, o), context=None):
             for ctx in cg:
                 yield s, p, o, ctx
             
-    def triples_choices(self, (s, p, o)):
+    def triples_choices(self, triple):
         """Iterate over all the triples in the entire conjunctive graph"""
+        (s, p, o) = triple
         for (s1, p1, o1), cg in self.store.triples_choices((s, p, o),
                                                            context=None):
             yield (s1, p1, o1)
@@ -949,8 +930,7 @@ class ConjunctiveGraph(Graph):
 
         identifier must be a URIRef or BNode.
         """
-        return Graph(store=self.store, identifier=identifier, 
-                    namespace_manager=self)
+        return Graph(store=self.store, identifier=identifier, namespace_manager=self)
 
     def remove_context(self, context):
         """Removes the given context from the graph"""
@@ -964,9 +944,9 @@ class ConjunctiveGraph(Graph):
         return URIRef(context_id, base=uri)
 
     def parse(self, source=None, publicID=None, format="xml",
-              location=None, file=None, data=None, **args):
+              location=None, file_input=None, data=None, **args):
         """
-        Parse source adding the resulting triples to its own context
+        Parse source adding the resulting triples to it's own context
         (sub graph of this graph).
 
         See `rdflib.graph.Graph.parse` for documentation on arguments.
@@ -977,15 +957,14 @@ class ConjunctiveGraph(Graph):
         it returns the root context.
         """
 
-        source = create_input_source(source=source, publicID=publicID, 
-                    location=location, file=file, data=data, format=format)
+        source = create_input_source(source=source, publicID=publicID, location=location, file_input=file_input, data=data, format=format)
 
         #id = self.context_id(self.absolutize(source.getPublicId()))
         context = Graph(store=self.store, identifier=
           publicID and URIRef(publicID) or source.getPublicId())
         context.remove((None, None, None))
         context.parse(source, publicID=publicID, format=format,
-                      location=location, file=file, data=data, **args)
+                      location=location, file_input=file_input, data=data, **args)
         return context
 
     def __reduce__(self):
@@ -993,12 +972,7 @@ class ConjunctiveGraph(Graph):
 
 
 class QuotedGraph(Graph):
-    """
-    Quoted Graphs are intended to implement Notation 3 formulae. They are 
-    associated with a required identifier that the N3 parser *must* provide 
-    in order to maintain consistent formulae identification for scenarios 
-    such as implication and other such processing.
-    """
+
     def __init__(self, store, identifier):
         super(QuotedGraph, self).__init__(store, identifier)
 
@@ -1031,12 +1005,15 @@ class GraphValue(QuotedGraph):
     def __init__(self, store, identifier=None, graph=None):
         if graph is not None:
             assert identifier is None
+            
             np = store.node_pickler
             identifier = md5()
             s = list(graph.triples((None, None, None)))
             s.sort()
-            for t in s:
-                identifier.update("^".join((np.dumps(i) for i in t)))
+            for triple in s:
+                #~ Since identifier is the function md5(), I need to use a bytes strings
+                byte_string = b"^".join((np.dumps(i) for i in triple))
+                identifier.update(byte_string)
             identifier = URIRef("data:%s" % identifier.hexdigest())
             super(GraphValue, self).__init__(store, identifier)
             for t in graph:
@@ -1117,24 +1094,26 @@ class BackwardCompatGraph(ConjunctiveGraph):
     def open(self, configuration, create=True):
         return ConjunctiveGraph.open(self, configuration, create)
 
-    def add(self, (s, p, o), context=None):
+    def add(self, triple, context=None):
         """Add to to the given context or to the default context"""
+        (s, p, o) = triple
         if context is not None:
             c = self.get_context(context)
-            assert c.identifier == context, "%s != %s" % \
-                                            (c.identifier, context)
+            assert c.identifier == context, "%s != %s" % (c.identifier, context)
         else:
             c = self.default_context
         self.store.add((s, p, o), context=c, quoted=False)
 
-    def remove(self, (s, p, o), context=None):
+    def remove(self, triple, context=None):
         """Remove from the given context or from the default context"""
+        (s, p, o) = triple
         if context is not None:
             context = self.get_context(context)
         self.store.remove((s, p, o), context)
 
-    def triples(self, (s, p, o), context=None):
+    def triples(self, triple, context=None):
         """Iterate over all the triples in the entire graph"""
+        (s, p, o) = triple
         if context is not None:
             c = self.get_context(context)
             assert c.identifier == context
@@ -1160,12 +1139,12 @@ class BackwardCompatGraph(ConjunctiveGraph):
             assert False
             return QuotedGraph(self.store, identifier)
             #return QuotedGraph(self.store, Graph(store=self.store,
-            #                                     identifier=identifier))
+            #                                    identifier=identifier))
         else:
             return Graph(store=self.store, identifier=identifier,
                          namespace_manager=self)
             #return Graph(self.store, Graph(store=self.store,
-            #                               identifier=identifier))
+            #                              identifier=identifier))
 
     def remove_context(self, context):
         """Remove the given context from the graph"""
@@ -1276,16 +1255,19 @@ class ReadOnlyGraphAggregate(ConjunctiveGraph):
         for graph in self.graphs:
             graph.close()
 
-    def add(self, (s, p, o)):
+    def add(self, triple):
+        (s, p, o) = triple
         raise ModificationException()
 
     def addN(self, quads):
         raise ModificationException()
 
-    def remove(self, (s, p, o)):
+    def remove(self, triple):
+        (s, p, o) = triple
         raise ModificationException()
 
-    def triples(self, (s, p, o)):
+    def triples(self, triple):
+        (s, p, o) = triple
         for graph in self.graphs:
             for s1, p1, o1 in graph.triples((s, p, o)):
                 yield (s1, p1, o1)
@@ -1300,8 +1282,9 @@ class ReadOnlyGraphAggregate(ConjunctiveGraph):
                     return True
         return False
 
-    def quads(self,(s,p,o)):
+    def quads(self, triple):
         """Iterate over all the quads in the entire aggregate graph"""
+        (s,p,o) = triple
         for graph in self.graphs:
             for s1, p1, o1 in graph.triples((s, p, o)):
                 yield (s1, p1, o1, graph)
@@ -1330,7 +1313,8 @@ class ReadOnlyGraphAggregate(ConjunctiveGraph):
 
     # Conv. methods
 
-    def triples_choices(self, (subject, predicate, object_), context=None):
+    def triples_choices(self, triple, context=None):
+        (subject, predicate, object_) = triple
         for graph in self.graphs:
             choices = graph.triples_choices((subject, predicate, object_))
             for (s, p, o) in choices:
@@ -1341,9 +1325,9 @@ class ReadOnlyGraphAggregate(ConjunctiveGraph):
             return self.namespace_manager.qname(uri)
         raise UnSupportedAggregateOperation()
 
-    def compute_qname(self, uri, generate=True):
+    def compute_qname(self, uri):
         if hasattr(self,'namespace_manager') and self.namespace_manager:
-            return self.namespace_manager.compute_qname(uri, generate)
+            return self.namespace_manager.compute_qname(uri)
         raise UnSupportedAggregateOperation()
 
     def bind(self, prefix, namespace, override=True):

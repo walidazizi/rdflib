@@ -33,7 +33,7 @@ from rdflib.plugins.parsers.rdfa.options import Options, GENERIC_XML, XHTML_RDFA
 
 import re
 import random
-import urlparse
+import urllib.parse
 
 RDFa_PROFILE    = "http://www.w3.org/1999/xhtml/vocab"
 RDFa_VERSION    = "XHTML+RDFa 1.0"
@@ -77,7 +77,7 @@ def _get_bnode_from_Curie(var):
         return retval
 
 #### Quote URI-s
-import urllib
+import urllib.request, urllib.parse, urllib.error
 # 'safe' characters for the URI quoting, ie, characters that can safely stay as they are. Other
 # special characters are converted to their %.. equivalents for namespace prefixes
 _unquotedChars = ':/\?=#'
@@ -97,7 +97,7 @@ def _quote(uri, options):
             if options != None:
                 options.comment_graph.add_warning('Unusual character in uri:%s; possible error?' % suri)
             break
-    return urllib.quote(suri, _unquotedChars)
+    return urllib.parse.quote(suri, _unquotedChars)
 
 
 #### Core Class definition
@@ -196,10 +196,6 @@ class ExecutionContext(object):
                                 self.options.comment_graph.add_info("None of the RDFa DOCTYPE, RDFa profile, or RFDa version has been set (for a correct identification of RDFa). This is not a requirement for RDFa, but it is advised to use one of those nevertheless.")
 
         #-----------------------------------------------------------------
-        # Stripping the fragment ID from the base URI, as demanded by RFC 3986
-        self.base = urlparse.urldefrag(self.base)[0]
-        
-        #-----------------------------------------------------------------
         # Settling the language tags
         # check first the lang or xml:lang attribute
         # RDFa does not allow the lang attribute. HTML5 relies :-( on @lang;
@@ -258,7 +254,7 @@ class ExecutionContext(object):
 
         # see if the xhtml core vocabulary has been set
         self.xhtml_prefix = None
-        for key in self.ns.keys():
+        for key in list(self.ns.keys()):
             if XHTML_URI == str(self.ns[key]):
                 self.xhtml_prefix = key
                 break
@@ -388,20 +384,18 @@ class ExecutionContext(object):
             self.options.comment_graph.add_error("Illegal usage of CURIE: %s" % val)
             return None
         else:
-            return URIRef(urlparse.urljoin(self.base, val))
+            return URIRef(urllib.parse.urljoin(self.base, val))
 
     def get_Curie_ref(self, val):
         """Create a URI RDFLib resource for a CURIE.
-        The input argument is a CURIE. This means that it is:
-        - either of the form [a:b] where a:b should be resolved as an 
-        'unprotected' CURIE, or
-        - it is a traditional URI (relative or absolute)
+        The input argument is a CURIE. This means that it is
+          - either of the form [a:b] where a:b should be resolved as an 'unprotected' CURIE, or
+          - it is a traditional URI (relative or absolute)
 
-        If the second case the URI value is also compared to 'usual' URI 
-        protocols ('http', 'https', 'ftp', etc) (see L{usual_protocols}).
-        If there is no match, a warning is generated (indeed, a frequent 
-        mistake in authoring RDFa is to forget the '[' and ']' characters to 
-        "protect" CURIE-s.)
+        If the second case the URI value is also compared to 'usual' URI protocols ('http', 'https', 'ftp', etc)
+        (see L{usual_protocols}).
+        If there is no match, a warning is generated (indeed, a frequent mistake in authoring RDFa is to forget
+        the '[' and ']' characters to "protect" CURIE-s.)
 
         @param val: CURIE string
         @return: an RDFLib URIRef instance
@@ -424,7 +418,7 @@ class ExecutionContext(object):
             # check the value, to see if an error may have been made...
             # Usual protocol values in the URI
             v = val.strip().lower()
-            protocol = urlparse.urlparse(val)[0]
+            protocol = urllib.parse.urlparse(val)[0]
             if protocol != "" and protocol not in usual_protocols:
                 err = "Possible URI error with '%s'; the intention may have been to use a protected CURIE" % val
                 self.options.comment_graph.add_warning(err)

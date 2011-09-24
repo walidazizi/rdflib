@@ -17,8 +17,8 @@ automatically downloads them (to allow for "manual+automatic" update).
 from operator import attrgetter
 import re
 import os
-from urllib2 import urlopen
-from urllib import url2pathname
+from urllib.request import urlopen
+from urllib.request import url2pathname
 
 from rdflib.graph import Graph
 from rdflib.namespace import Namespace, RDF
@@ -112,7 +112,7 @@ def cached_file(url):
     return fpath
 
 
-KNOWN_ISSUES = set([11, 92, 94, 100, 101, 102, 103, 114])
+KNOWN_ISSUES = set([11, 92, 94, 100, 101, 102, 103, 114, 117])
 KNOWN_ISSUES |= set([105, 106])
 
 
@@ -141,14 +141,14 @@ def all_tests(skip_known_issues=True):
 def manual_run():
     errors, failed, count = 0, 0, 0
     for test, in all_tests(skip_known_issues=False):
-        count += 1; print test.description,
+        count += 1; print(test.description, end=' ')
         try:
-            test(); print "PASSED"
-        except AssertionError, e:
-            failed += 1; print "****FAILED****", e;
-        except Exception, e:
-            errors += 1; print "****ERROR**** in %s" % test._source_urls, e
-    print "Ran %(count)s tests. Failed: %(failed)s. Errors: %(errors)s."%vars()
+            test(); print("PASSED")
+        except AssertionError as e:
+            failed += 1; print("****FAILED****", e);
+        except Exception as e:
+            errors += 1; print("****ERROR**** in %s" % test._source_urls, e)
+    print("Ran %(count)s tests. Failed: %(failed)s. Errors: %(errors)s."%vars())
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ U{W3C® SOFTWARE NOTICE AND LICENSE<href="http://www.w3.org/Consortium/Legal/200
 @contact: Ivan Herman, ivan@w3.org
 """
 
-from StringIO   import StringIO
+from io   import StringIO
 
 def handle_embeddedRDF(node, graph, state):
     """

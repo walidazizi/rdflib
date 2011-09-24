@@ -66,22 +66,22 @@ class TestNew(unittest.TestCase):
 
 class TestRepr(unittest.TestCase):
     def testOmitsMissingDatatypeAndLang(self):
-        self.assertEqual(repr(Literal("foo")), "rdflib.term.Literal(u'foo')")
+        self.assertEqual(repr(Literal("foo")), "rdflib.term.Literal('foo')")
 
     def testOmitsMissingDatatype(self):
         self.assertEqual(repr(Literal("foo", lang='en')),
-                         "rdflib.term.Literal(u'foo', lang='en')")
+                         "rdflib.term.Literal('foo', lang='en')")
 
     def testOmitsMissingLang(self):
         self.assertEqual(
             repr(Literal("foo", datatype=URIRef('http://example.com/'))),
-            "rdflib.term.Literal(u'foo', datatype=rdflib.term.URIRef('http://example.com/'))")
+            "rdflib.term.Literal('foo', datatype=rdflib.term.URIRef('http://example.com/'))")
 
     def testSubclassNameAppearsInRepr(self):
         class MyLiteral(Literal):
             pass
-        x = MyLiteral(u"foo")
-        self.assertEqual(repr(x), "MyLiteral(u'foo')")
+        x = MyLiteral("foo")
+        self.assertEqual(repr(x), "MyLiteral('foo')")
         
 
 if __name__ == "__main__":

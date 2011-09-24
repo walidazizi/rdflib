@@ -6,21 +6,20 @@ From a Python file, expecting an RDF/XML pretty printed output::
     graph.parse('filename.html', format='rdfa')
     print graph.serialize(format='pretty-xml')
 
-For details on RDFa, the reader should consult the `RDFa syntax document`__.
+For details on RDFa, the reader should consult the `RDFa syntax document
+<http://www.w3.org/TR/rdfa-syntax>`_.
 
-This is an adapted version of pyRdfa (`W3C RDFa Distiller page`__) by Ivan Herman
-
-.. __: http://www.w3.org/TR/rdfa-syntax
-.. __: http://www.w3.org/2007/08/pyRdfa/
-
+This is an adapted version of pyRdfa (`W3C RDFa Distiller page
+<http://www.w3.org/2007/08/pyRdfa/>`_) by Ivan Herman
 """
 
-
 import sys
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import xml.dom.minidom
 
-from rdflib.term import URIRef
+from rdflib.graph import Graph
+from rdflib.namespace import Namespace
+from rdflib.term import BNode, URIRef
 from rdflib.parser import Parser
 from rdflib.plugins.parsers.rdfa.state import ExecutionContext
 from rdflib.plugins.parsers.rdfa.parse import parse_one_node
@@ -55,16 +54,13 @@ class RDFaParser(Parser):
 
     def parse(self, source, sink,
             warnings=False, space_preserve=True,
-            transformers=None, xhtml=True, lax=True, html5=False, encoding=None):
+            transformers=None, xhtml=True, lax=True):
         if transformers is None:
             transformers = []
         options = Options(warnings, space_preserve, transformers, xhtml, lax)
         baseURI = source.getPublicId()
         stream = source.getByteStream()
-        if html5:
-            dom = _process_html5_source(stream, options, encoding)
-        else:
-            dom = _try_process_source(stream, options, encoding)
+        dom = _try_process_source(stream, options)
         _process_DOM(dom, baseURI, sink, options)
 
 
@@ -74,16 +70,12 @@ def _process_DOM(dom, base, graph, options=None):
     tree, the state is initialized, and the "real" RDFa parsing is done.
     The result is put into the provided Graph.
 
-    The real work is done in the parser function ``parse_one_node()``.
+    The real work is done in the parser function :obj:`parse_one_node`.
 
-    Params:
-    dom -- XML DOM Tree node (for the top level)
-    base -- URI for the default "base" value (usually the URI of the file to be processed)
-    
-    Options: 
-    obj -- `Options` for the distiller
-    raise RDFaError -- when called via CGI, this encapsulates the possible 
-    exceptions raised by the RDFLib serializer or the processing itself
+    :param dom: XML DOM Tree node (for the top level)
+    :param base: URI for the default "base" value (usually the URI of the file to be processed)
+    :param options: :obj:`Options` for the distiller
+    :raise RDFaError: when called via CGI, this encapsulates the possible exceptions raised by the RDFLib serializer or the processing itself
     """
     html = dom.documentElement
     # Perform the built-in and external transformations on the HTML tree. This is,
@@ -105,7 +97,7 @@ def _process_DOM(dom, base, graph, options=None):
         for t in options.comment_graph.graph:
             graph.add(t)
 
-def _try_process_source(stream, options, encoding):
+def _try_process_source(stream, options):
     """
     Tries to parse input as xhtml, xml (e.g. svg) or html(5), modifying options
     while figuring out input..
@@ -124,7 +116,6 @@ def _try_process_source(stream, options, encoding):
             key = (top.getAttribute("xmlns"), top.nodeName)
             if key in _HOST_LANG:
                 options.host_language = _HOST_LANG[key]
-        return dom
     except:
         # XML Parsing error in the input
         type, value, traceback = sys.exc_info()
@@ -138,30 +129,27 @@ def _try_process_source(stream, options, encoding):
 
         # in Ivan's original code he reopened the stream if it was from urllib 
         if isinstance(stream, urllib.addinfourl):
-            stream = urllib.urlopen(stream.url)
-            
-        return _process_html5_source(stream, options, encoding)
+            stream = urllib.request.urlopen(stream.url)
 
+        # Now try to see if and HTML5 parser is an alternative...
+        try:
+            from html5lib import HTMLParser, treebuilders
+        except ImportError:
+            # no alternative to the XHTML error, because HTML5 parser not available...
+            msg2 = 'XHTML Parsing error in input file: %s. Though parsing is lax, HTML5 parser not available. Try installing html5lib <http://code.google.com/p/html5lib>' % value
+            raise RDFaError(msg2)
 
-def _process_html5_source(stream, options, encoding):
-    # Now try to see if and HTML5 parser is an alternative...
-    try:
-        from html5lib import HTMLParser, treebuilders
-    except ImportError:
-        # no alternative to the XHTML error, because HTML5 parser not available...
-        msg2 = 'XHTML Parsing error in input file: %s. Though parsing is lax, HTML5 parser not available. Try installing html5lib <http://code.google.com/p/html5lib>' 
-        raise RDFaError(msg2)
-
-    parser = HTMLParser(tree=treebuilders.getTreeBuilder("dom"))
-    parse = parser.parse
-    try:
-        dom = parse(stream, encoding)
-        # The host language has changed
-        options.host_language = HTML5_RDFA
-    except:
-        # Well, even the HTML5 parser could not do anything with this...
-        (type, value, traceback) = sys.exc_info()
-        msg2 = 'Parsing error in input file as HTML5: "%s"' % value
-        raise RDFaError, msg2
+        parser = HTMLParser(tree=treebuilders.getTreeBuilder("dom"))
+        parse = parser.parse
+        try:
+            dom = parse(stream)
+            # The host language has changed
+            options.host_language = HTML5_RDFA
+        except:
+            # Well, even the HTML5 parser could not do anything with this...
+            (type, value, traceback) = sys.exc_info()
+            msg2 = 'Parsing error in input file as HTML5: "%s"' % value
+            msg3 = msg + '\n' + msg2
+            raise RDFaError(msg3)
 
     return dom

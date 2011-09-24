@@ -99,16 +99,16 @@ class TestN3Case(unittest.TestCase):
         """
 
         input = """
-@prefix : <http://example.com> . 
-# default base
-<foo> :name "Foo" .
-# change it 
-@base <http://example.com/doc/> .
-<bar> :name "Bar" .
-# and change it more - they are cummalative
-@base <doc2/> .
-<bing> :name "Bing" .
-"""
+		@prefix : <http://example.com> . 
+		# default base
+		<foo> :name "Foo" .
+		# change it 
+		@base <http://example.com/doc/> .
+		<bar> :name "Bar" .
+		# and change it more - they are cummalative
+		@base <doc2/> .
+		<bing> :name "Bing" .
+		"""
         g = Graph()
         g.parse(data=input, format="n3")
 
@@ -137,13 +137,6 @@ foo-bar:Ex foo-bar:name "Test" . """
         
         g = Graph()
         g.parse(data=input, format="n3")
-
-    def testIssue156(self):
-        """
-        Make sure n3 parser does not choke on UTF-8 BOM
-        """
-        g = Graph()
-        g.parse("test/n3/issue156.n3", format="n3")
 
     def testModel(self):
         g = ConjunctiveGraph()

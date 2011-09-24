@@ -5,8 +5,6 @@ TODO...
 
 """
 
-from string import rsplit
-
 from rdflib.term import URIRef
 from rdflib.term import BNode
 from rdflib.term import Literal
@@ -24,15 +22,17 @@ def first(seq):
         return result
     return None
 
-def uniq(sequence, strip=0):
-    """removes duplicate strings from the sequence."""
-    set = {}
+def uniq(sequence, strip=False):
+    """Removes duplicate strings from a sequence."""
+    
+    #~ I'll return a list, but internally I use a set, since it can automatically discard duplicate values
+    
+    #~ If strip is set to True, I'll use the built-in function strip() for the strings
     if strip:
-        map(lambda val, default: set.__setitem__(val.strip(), default),
-            sequence, [])
+        result = set(map(lambda val: str(val).strip(), sequence))
     else:
-        map(set.__setitem__, sequence, [])
-    return set.keys()
+        result = set(sequence)
+    return list(result)
 
 def more_than(sequence, number):
     "Returns 1 if sequence has more items than number and 0 if not."
@@ -60,7 +60,6 @@ def term(str, default=None):
 
 
 from time import mktime, time, gmtime, localtime, timezone, altzone, daylight
-from calendar import timegm
 
 def date_time(t=None, local_time_zone=False):
     """http://www.w3.org/TR/NOTE-datetime ex: 1997-07-16T19:20:30Z
@@ -136,10 +135,6 @@ def parse_date_time(val):
     t = mktime((int(year), int(month), int(day), int(hour),
                 int(minute), int(second), 0, 0, 0))
     t = t - timezone + tz_offset
-    # Alternative handles case when local time is DST
-    t = timegm((int(year), int(month), int(day), int(hour),
-                int(minute), int(second), 0, 0, 0))
-    t = t + tz_offset
     return t
 
 def from_n3(s, default=None, backend=None):
@@ -150,11 +145,11 @@ def from_n3(s, default=None, backend=None):
         return URIRef(s[1:-1])
     elif s.startswith('"'):
         # TODO: would a regex be faster?
-        value, rest = rsplit(s, '"', 1)
+        value, rest = s.rsplit('"', 1)
         value = value[1:] # strip leading quote
         if rest.startswith("@"):
             if "^^" in rest:
-                language, rest = rsplit(rest, '^^', 1)
+                language, rest = rest.rsplit('^^', 1)
                 language = language[1:] # strip leading at sign
             else:
                 language = rest[1:] # strip leading at sign
@@ -201,7 +196,8 @@ def check_object(o):
             isinstance(o, BNode)):
         raise ObjectTypeError(o)
 
-def check_statement((s, p, o)):
+def check_statement(xxx_todo_changeme):
+    (s, p, o) = xxx_todo_changeme
     if not (isinstance(s, URIRef) or isinstance(s, BNode)):
         raise SubjectTypeError(s)
 
@@ -213,7 +209,8 @@ def check_statement((s, p, o)):
             isinstance(o, BNode)):
         raise ObjectTypeError(o)
 
-def check_pattern((s, p, o)):
+def check_pattern(xxx_todo_changeme1):
+    (s, p, o) = xxx_todo_changeme1
     if s and not (isinstance(s, URIRef) or isinstance(s, BNode)):
         raise SubjectTypeError(s)
 
@@ -231,7 +228,7 @@ def graph_to_dot(graph, dot):
     nodes = {}
     for s, o in graph.subject_objects():
         for i in s,o:
-            if i not in nodes.keys():
+            if i not in list(nodes.keys()):
                 nodes[i] = i
     for s, p, o in graph.triples((None,None,None)):
         dot.add_edge(pydot.Edge(nodes[s], nodes[o], label=p))

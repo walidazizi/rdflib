@@ -16,7 +16,7 @@ class RecursiveSerializer(Serializer):
     topClasses = [RDFS.Class]
     predicateOrder = [RDF.type, RDFS.label]
     maxDepth = 10
-    indentString = u"  "
+    indentString = "  "
     
     def __init__(self, store):
 
@@ -54,9 +54,22 @@ class RecursiveSerializer(Serializer):
                 self._topLevels[member] = True
                 seen[member] = True
 
+        #~ recursable = [(isinstance(subject,BNode), self.refCount(subject), subject) for subject in self._subjects
+                      #~ if subject not in seen]
+        
         recursable = [(isinstance(subject,BNode), self.refCount(subject), subject) for subject in self._subjects
                       if subject not in seen]
-
+        
+        #~ print('\n--------------')
+        #~ [print(value) for value in recursable]
+        #~ print('--------------')
+        #~ from rdflib.graph import ConjunctiveGraph
+        #~ for graph in recursable:
+            #~ print(graph)
+            #~ if isinstance(graph, ConjunctiveGraph):
+                #~ [print(' ', value) for value in graph]
+        #~ print('--------------\n\n')
+        
         recursable.sort()
         subjects.extend([subject for (isbnode, refs, subject) in recursable])
                 
@@ -66,7 +79,8 @@ class RecursiveSerializer(Serializer):
         for triple in self.store.triples((None,None,None)):
             self.preprocessTriple(triple)
 
-    def preprocessTriple(self, (s,p,o)):
+    def preprocessTriple(self, xxx_todo_changeme):
+        (s,p,o) = xxx_todo_changeme
         references = self.refCount(o) + 1
         self._references[o] = references
         self._subjects[s] = True
@@ -97,7 +111,7 @@ class RecursiveSerializer(Serializer):
         """Take a hash from predicate uris to lists of values.
            Sort the lists of values.  Return a sorted list of properties."""
         # Sort object lists
-        for prop, objects in properties.items():
+        for prop, objects in list(properties.items()):
             objects.sort()
 
         # Make sorted list of properties
@@ -107,7 +121,7 @@ class RecursiveSerializer(Serializer):
             if (prop in properties) and (prop not in seen):
                 propList.append(prop)
                 seen[prop] = True
-        props = properties.keys()
+        props = list(properties.keys())
         props.sort()
         for prop in props:
             if prop not in seen:
@@ -125,7 +139,8 @@ class RecursiveSerializer(Serializer):
         
     def write(self, text):
         """Write text in given encoding."""
-        self.stream.write(text.encode(self.encoding, 'replace'))
+        #~ I always treat text as UTF-8
+        self.stream.write(text) #.decode(self.encoding, 'replace'))
 
 
 SUBJECT = 0
@@ -181,7 +196,7 @@ class TurtleSerializer(RecursiveSerializer):
                 self.write('\n')
 
         self.endDocument()
-        stream.write("\n")
+        stream.write('\n')
 
     def preprocessTriple(self, triple):
         super(TurtleSerializer, self).preprocessTriple(triple)
@@ -189,7 +204,7 @@ class TurtleSerializer(RecursiveSerializer):
             if node in self.keywords:
                 continue
             # Don't use generated prefixes for subjects and objects
-            self.getQName(node, gen_prefix=(i==VERB))
+            self.getQName(node, gen_prefix=(i==1))
             if isinstance(node, Literal) and node.datatype:
                 self.getQName(node.datatype, gen_prefix=_GEN_QNAME_FOR_DT)
         p = triple[1]
@@ -199,28 +214,28 @@ class TurtleSerializer(RecursiveSerializer):
     def getQName(self, uri, gen_prefix=True):
         if not isinstance(uri, URIRef):
             return None
-
-        parts=None
-        
-        try: 
-            parts = self.store.compute_qname(uri, generate=gen_prefix)
-        except: 
-
-            # is the uri a namespace in itself?
+        try:
+            parts = self.store.compute_qname(uri)
+        except Exception as e:
             pfx = self.store.store.prefix(uri)
-        
             if pfx is not None:
                 parts = (pfx, uri, '')
-            else: 
-                # nothing worked
+            else:
+                parts = None
+        if parts:
+            prefix, namespace, local = parts
+            if not gen_prefix and prefix.startswith('_'):
                 return None
-
-        prefix, namespace, local = parts
-        # Local parts with '.' will mess up serialization
-        if '.' in local:
+            # Local parts with '.' will mess up serialization
+            if '.' in local:
+                return None
+            self.addNamespace(prefix, namespace)
+            return '%s:%s' % (prefix, local)
+        else:
             return None
-        self.addNamespace(prefix, namespace)
-        return u'%s:%s' % (prefix, local)
+        #if self.base and uri.startswith(self.base):
+        #   # this feels too simple, should it work?
+        #   return '<%s>'%uri[len(self.base):]
 
     def startDocument(self):
         self._started = True

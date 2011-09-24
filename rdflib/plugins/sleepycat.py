@@ -1,14 +1,11 @@
 from rdflib.store import Store, VALID_STORE, CORRUPTED_STORE, NO_STORE, UNKNOWN
 from rdflib.term import URIRef
 
-try:
-    from bsddb import db
-except ImportError:
-    from bsddb3 import db
+from bsddb3 import db
 
 from os import mkdir
 from os.path import exists, abspath
-from urllib import pathname2url
+from urllib.request import pathname2url
 from threading import Thread
 
 import logging
@@ -40,7 +37,7 @@ class Sleepycat(Store):
                 mkdir(homeDir) # TODO: implement create method and refactor this to it
                 self.create(homeDir)
             else:
-                return NO_STORE
+                return -1
         db_env = db.DBEnv()
         db_env.set_cachesize(0, 1024*1024*50) # TODO
         #db_env.set_lg_max(1024*1024)
@@ -57,10 +54,7 @@ class Sleepycat(Store):
         if self.__identifier is None:
             self.__identifier = URIRef(pathname2url(abspath(homeDir)))
 
-        db_env = self._init_db_environment(homeDir, create)
-        if db_env == NO_STORE:
-            return NO_STORE
-        self.db_env = db_env
+        self.db_env = db_env = self._init_db_environment(homeDir, create)        
         self.__open = True
 
         dbname = None
@@ -70,13 +64,13 @@ class Sleepycat(Store):
         if self.transaction_aware == True:
             dbopenflags |= db.DB_AUTO_COMMIT
 
-        dbmode = 0660
+        dbmode = 0o660
         dbsetflags   = 0
 
         # create and open the DBs
         self.__indicies = [None,] * 3
         self.__indicies_info = [None,] * 3
-        for i in xrange(0, 3):
+        for i in range(0, 3):
             index_name = to_key_func(i)(("s", "p", "o"), "c")
             index = db.DB(db_env)
             index.set_flags(dbsetflags)
@@ -85,12 +79,12 @@ class Sleepycat(Store):
             self.__indicies_info[i] = (index, to_key_func(i), from_key_func(i))
 
         lookup = {}
-        for i in xrange(0, 8):
+        for i in range(0, 8):
             results = []
-            for start in xrange(0, 3):
+            for start in range(0, 3):
                 score = 1
                 len = 0
-                for j in xrange(start, start+3):
+                for j in range(start, start+3):
                     if i & (1<<(j%3)):
                         score = score << 1
                         len += 1
@@ -168,7 +162,7 @@ class Sleepycat(Store):
                             break
                 else:
                     sleep(1)
-        except Exception, e:
+        except Exception as e:
             _logger.exception(e)
 
     def sync(self):
@@ -193,10 +187,11 @@ class Sleepycat(Store):
         self.__k2i.close()
         self.db_env.close()
 
-    def add(self, (subject, predicate, object), context, quoted=False, txn=None):
+    def add(self, xxx_todo_changeme, context, quoted=False, txn=None):
         """\
         Add a triple to the store of triples.
         """
+        (subject, predicate, object) = xxx_todo_changeme
         assert self.__open, "The Store must be open."
         assert context!=self, "Can not add triple directly to store"
         Store.add(self, (subject, predicate, object), context, quoted)
@@ -230,7 +225,8 @@ class Sleepycat(Store):
 
             self.__needs_sync = True
 
-    def __remove(self, (s, p, o), c, quoted=False, txn=None):
+    def __remove(self, triple, c, quoted=False, txn=None):
+        (s, p, o) = triple
         cspo, cpos, cosp = self.__indicies
         contexts_value = cspo.get("^".join(("", s, p, o, "")), txn=txn) or ""
         contexts = set(contexts_value.split("^"))
@@ -246,10 +242,11 @@ class Sleepycat(Store):
                 for i, _to_key, _from_key in self.__indicies_info:
                     try:
                         i.delete(_to_key((s, p, o), ""), txn=txn)
-                    except db.DBNotFoundError, e: 
+                    except db.DBNotFoundError as e: 
                         pass # TODO: is it okay to ignore these?
 
-    def remove(self, (subject, predicate, object), context, txn=None):
+    def remove(self, triple, context, txn=None):
+        (subject, predicate, object) = triple
         assert self.__open, "The Store must be open."
         Store.remove(self, (subject, predicate, object), context)
         _to_string = self._to_string
@@ -284,7 +281,7 @@ class Sleepycat(Store):
                 cursor = index.cursor(txn=txn)
                 try:
                     cursor.set_range(key)
-                    current = cursor.next()
+                    current = next(cursor)
                 except db.DBNotFoundError:
                     current = None
                 cursor.close()
@@ -307,13 +304,14 @@ class Sleepycat(Store):
                     # TODO: also if context becomes empty and not just on remove((None, None, None), c)
                     try:
                         self.__contexts.delete(_to_string(context, txn=txn), txn=txn)
-                    except db.DBNotFoundError, e:
+                    except db.DBNotFoundError as e:
                         pass
 
             self.__needs_sync = needs_sync
 
-    def triples(self, (subject, predicate, object), context=None, txn=None):
+    def triples(self, triple, context=None, txn=None):
         """A generator over all the triples matching """
+        (subject, predicate, object) = triple
         assert self.__open, "The Store must be open."
 
         if context is not None:
@@ -334,7 +332,7 @@ class Sleepycat(Store):
             cursor = index.cursor(txn=txn)
             try:
                 cursor.set_range(key)
-                current = cursor.next()
+                current = next(cursor)
             except db.DBNotFoundError:
                 current = None
             cursor.close()
@@ -363,7 +361,7 @@ class Sleepycat(Store):
             key, value = current
             if key.startswith(prefix):
                 count +=1
-                current = cursor.next()
+                current = next(cursor)
             else:
                 break
         cursor.close()
@@ -393,7 +391,7 @@ class Sleepycat(Store):
         while current:
             prefix, namespace = current
             results.append((prefix, namespace))
-            current = cursor.next()
+            current = next(cursor)
         cursor.close()
         for prefix, namespace in results:
             yield prefix, URIRef(namespace)
@@ -424,7 +422,7 @@ class Sleepycat(Store):
                 cursor = index.cursor()
                 try:
                     cursor.set_range(key)
-                    current = cursor.next()
+                    current = next(cursor)
                 except db.DBNotFoundError:
                     current = None
                 cursor.close()
@@ -447,7 +445,8 @@ class Sleepycat(Store):
             self.__k2i.put(k, i, txn=txn)
         return i
 
-    def __lookup(self, (subject, predicate, object), context, txn=None):
+    def __lookup(self, xxx_todo_changeme4, context, txn=None):
+        (subject, predicate, object) = xxx_todo_changeme4
         _to_string = self._to_string
         if context is not None:
             context = _to_string(context, txn=txn)

@@ -23,7 +23,7 @@ def testN3Store(store="default", configString=None):
         g.destroy(configString)
         g.open(configString)
     g.parse(data=testN3, format="n3")
-    print g.store
+    print(g.store)
     try:
         for s,p,o in g.triples((None,implies,None)):
             formulaA = s

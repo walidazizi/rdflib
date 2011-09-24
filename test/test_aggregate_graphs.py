@@ -3,7 +3,7 @@ from rdflib.namespace import Namespace, RDF, RDFS
 from rdflib import plugin
 from rdflib.term import URIRef
 from rdflib.store import Store
-from cStringIO import StringIO
+from io import StringIO
 from rdflib.graph import Graph
 from rdflib.graph import ReadOnlyGraphAggregate
 from rdflib.graph import ConjunctiveGraph

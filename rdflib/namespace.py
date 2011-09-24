@@ -1,15 +1,13 @@
-from __future__ import generators
-
 import logging
 
 _logger = logging.getLogger(__name__)
 
 import os
 
-from urlparse import urljoin, urldefrag
-from urllib import pathname2url
+from urllib.parse import urljoin, urldefrag
+from urllib.request import pathname2url
 
-from rdflib.term import URIRef, Variable, _XSD_PFX
+from rdflib.term import URIRef, Literal, Variable, _XSD_PFX
 
 
 class Namespace(URIRef):
@@ -29,7 +27,6 @@ class Namespace(URIRef):
             raise AttributeError
         else:
             return self.term(name)
-
 
 class NamespaceDict(dict):
 
@@ -91,7 +88,15 @@ class ClosedNamespace(object):
             raise AttributeError
         else:
             return self.term(name)
-
+    
+    def __iter__(self):
+        
+        for key in self.__uris:
+            yield key
+    
+    def __len__(self):
+        return len(self.__uris)
+    
     def __str__(self):
         return str(self.uri)
 
@@ -122,7 +127,7 @@ class _RDFNamespace(ClosedNamespace):
         try:
             i = int(name)
             return URIRef("%s_%s" % (self.uri, i))
-        except ValueError, e:
+        except ValueError as e:
             return super(_RDFNamespace, self).term(name)
 
 RDF = _RDFNamespace()
@@ -145,7 +150,7 @@ class NamespaceManager(object):
         self.graph = graph
         self.__cache = {}
         self.__log = None
-        self.bind("xml", u"http://www.w3.org/XML/1998/namespace")
+        self.bind("xml", "http://www.w3.org/XML/1998/namespace")
         self.bind("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
         self.bind("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
 
@@ -185,35 +190,45 @@ class NamespaceManager(object):
             qNameParts = self.compute_qname(rdfTerm)
             return ':'.join([qNameParts[0],qNameParts[-1]])
 
-    def compute_qname(self, uri, generate=True):
+    def compute_qname(self, uri):
         if not uri in self.__cache:
             namespace, name = split_uri(uri)
             namespace = URIRef(namespace)
             prefix = self.store.prefix(namespace)
             if prefix is None:
-                if not generate: 
-                    raise Exception("No known prefix for %s and generate=False")
-                num = 1
-                while 1:
-                    prefix = "ns%s" % num
-                    if not self.store.namespace(prefix):
-                        break
-                    num += 1
+                prefix = "_%s" % len(list(self.store.namespaces()))
                 self.bind(prefix, namespace)
             self.__cache[uri] = (prefix, namespace, name)
         return self.__cache[uri]
 
     def bind(self, prefix, namespace, override=True):
+        """
+        Bind a prefix to a namespace uri.
+        It checks if it is already present the uri in the namespaces repository in the store.
+        If it is present and the prefix is different, if override is True it will delete the old prefix and save the new one.
+        """
         namespace = URIRef(namespace)
         # When documenting explain that override only applies in what cases
         if prefix is None:
             prefix = ''
+        
         bound_namespace = self.store.namespace(prefix)
+        
+        #~ print()
+        #~ print('bind: ', prefix, ':', namespace)
+        #~ print(bound_namespace)
+        
+        #~ import pdb
+        #~ pdb.set_trace()
+        
         if bound_namespace and bound_namespace!=namespace:
             # prefix already in use for different namespace
             #
             # append number to end of prefix until we find one
             # that's not in use.
+            
+            #~ print('il namespace è diverso. ', type(bound_namespace), ' ', type(namespace))
+            
             if not prefix:
                 prefix = "default"
             num = 1
@@ -224,14 +239,22 @@ class NamespaceManager(object):
                 num +=1
             self.store.bind(new_prefix, namespace)
         else:
+            
             bound_prefix = self.store.prefix(namespace)
+            
             if bound_prefix is None:
+                #~ print('non c\'è il prefix. Salvo ', prefix, ': ', namespace)
                 self.store.bind(prefix, namespace)
-            elif bound_prefix == prefix:
-                pass # already bound
             else:
-                if override or bound_prefix.startswith("_"): # or a generated prefix
-                    self.store.bind(prefix, namespace)
+                #~ bound_prefix could be a Literal
+                if isinstance(bound_prefix, Literal): bound_prefix=str(bound_prefix)
+                
+                if bound_prefix == prefix:
+                    pass # already bound
+                else:
+                    #~ print('il prefix è diverso. ', bound_prefix, ' ', prefix)
+                    if override or bound_prefix.startswith("_"): # or a generated prefix
+                        self.store.bind(prefix, namespace)
 
     def namespaces(self):
         for prefix, namespace in self.store.namespaces():
@@ -285,18 +308,18 @@ from unicodedata import category, decomposition
 
 NAME_START_CATEGORIES = ["Ll", "Lu", "Lo", "Lt", "Nl"]
 NAME_CATEGORIES = NAME_START_CATEGORIES + ["Mc", "Me", "Mn", "Lm", "Nd"]
-ALLOWED_NAME_CHARS = [u"\u00B7", u"\u0387", u"-", u".", u"_"]
+ALLOWED_NAME_CHARS = ["\u00B7", "\u0387", "-", ".", "_"]
 
 # http://www.w3.org/TR/REC-xml-names/#NT-NCName
 #  [4] NCName ::= (Letter | '_') (NCNameChar)* /* An XML Name, minus
-#      the ":" */
+#     the ":" */
 #  [5] NCNameChar ::= Letter | Digit | '.' | '-' | '_' | CombiningChar
-#      | Extender
+#     | Extender
 
 def is_ncname(name):
     first = name[0]
     if first=="_" or category(first) in NAME_START_CATEGORIES:
-        for i in xrange(1, len(name)):
+        for i in range(1, len(name)):
             c = name[i]
             if not category(c) in NAME_CATEGORIES:
                 if c in ALLOWED_NAME_CHARS:
@@ -304,7 +327,7 @@ def is_ncname(name):
                 return 0
             #if in compatibility area
             #if decomposition(c)!='':
-            #    return 0
+            #   return 0
 
         return 1
     else:
@@ -316,12 +339,12 @@ def split_uri(uri):
     if uri.startswith(XMLNS):
         return (XMLNS, uri.split(XMLNS)[1])
     length = len(uri)
-    for i in xrange(0, length):
+    for i in range(0, length):
         c = uri[-i-1]
         if not category(c) in NAME_CATEGORIES:
             if c in ALLOWED_NAME_CHARS:
                 continue
-            for j in xrange(-1-i, length):
+            for j in range(-1-i, length):
                 if category(uri[j]) in NAME_START_CATEGORIES or uri[j]=="_":
                     ns = uri[:j]
                     if not ns:

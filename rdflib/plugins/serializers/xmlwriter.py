@@ -3,16 +3,36 @@ from xml.sax.saxutils import quoteattr, escape
 
 
 class XMLWriter(object):
+    
+    """
+    Transform an object (a graph) in a valid xml document.
+    """
     def __init__(self, stream, namespace_manager, encoding=None, decl=1, extra_ns={}):
         encoding = encoding or 'utf-8'
+        
+        #~ Use the Python codecs library and retrieve the appropriate codec
         encoder, decoder, stream_reader, stream_writer = codecs.lookup(encoding)
-        self.stream = stream = stream_writer(stream)
+        
+        #~ Assign a stream encoder to the original stream
+        #~ The encoder will encode the datas before sending them to the original stream
+        #~ Not good if the originale stream is a StringIO (or similar), since it needs string datas, instead will receive bytes data
+        self.stream = stream #= stream_writer(stream)
+        
         if decl:
-            stream.write('<?xml version="1.0" encoding="%s"?>' % encoding)
+            stream.write(str('<?xml version="1.0" encoding="%s"?>' % encoding))
         self.element_stack = []
         self.nm = namespace_manager
         self.extra_ns=extra_ns
         self.closed = True
+        
+        #~ import inspect
+        #~ curframe = inspect.currentframe()
+        #~ calframe = inspect.getouterframes(curframe, 2)
+        #~ print('\n---------XMLWriter------------')
+        #~ print ('caller name:', calframe[1])
+        #~ import pdb
+        #~ pdb.set_trace ()
+        
 
     def __get_indent(self):
         return "  " * len(self.element_stack)
@@ -51,7 +71,7 @@ class XMLWriter(object):
     def element(self, uri, content, attributes={}):
         """Utility method for adding a complete simple element"""
         self.push(uri)
-        for k, v in attributes.iteritems():
+        for k, v in attributes.items():
             self.attribute(k,v)
         self.text(content)
         self.pop()
@@ -59,7 +79,7 @@ class XMLWriter(object):
     def namespaces(self, namespaces=None):
         if not namespaces:
             namespaces=self.nm.namespaces()
-
+        
         write = self.stream.write
         write("\n")
         for prefix, namespace in namespaces:
@@ -68,7 +88,7 @@ class XMLWriter(object):
             else:
                 write('  xmlns="%s"\n' % namespace)
 
-        for prefix, namespace in self.extra_ns.items():
+        for prefix, namespace in list(self.extra_ns.items()):
             if prefix:
                 write('  xmlns:%s="%s"\n' % (prefix, namespace))
             else:
@@ -92,7 +112,7 @@ class XMLWriter(object):
         """Compute qname for a uri using our extra namespaces,
         or the given namespace manager"""
 
-        for pre,ns in self.extra_ns.items(): 
+        for pre,ns in list(self.extra_ns.items()): 
             if uri.startswith(ns): 
                 if pre!="": 
                     return ":".join(pre,uri[len(ns):])

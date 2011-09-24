@@ -19,8 +19,8 @@ class Collection(object):
     >>> g.add((listItem2,RDF.rest,RDF.nil))
     >>> g.add((listItem2,RDF.first,Literal(3)))
     >>> c=Collection(g,listName)
-    >>> print list(c)
-    [rdflib.term.Literal(u'1', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer')), rdflib.term.Literal(u'2', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer')), rdflib.term.Literal(u'3', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer'))]
+    >>> print (list(c))
+    [rdflib.term.Literal('1', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer')), rdflib.term.Literal('2', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer')), rdflib.term.Literal('3', datatype=rdflib.term.URIRef('http://www.w3.org/2001/XMLSchema#integer'))]
     >>> 1 in c
     True
     >>> len(c)
@@ -50,7 +50,7 @@ class Collection(object):
         >>> g.add((listItem2,RDF.rest,RDF.nil))
         >>> g.add((listItem2,RDF.first,Literal(3)))
         >>> c=Collection(g,listName)
-        >>> print c.n3()
+        >>> print (c.n3())
         ( "1"^^<http://www.w3.org/2001/XMLSchema#integer> "2"^^<http://www.w3.org/2001/XMLSchema#integer> "3"^^<http://www.w3.org/2001/XMLSchema#integer> )
         """
         return "( %s )"%(' '.join([i.n3() for i in self]))
@@ -106,9 +106,9 @@ class Collection(object):
             if v:
                 return v
             else:
-                raise KeyError, key
+                raise KeyError(key)
         else:
-            raise IndexError, key
+            raise IndexError(key)
 
     def __setitem__(self, key, value):
         """TODO"""
@@ -116,13 +116,12 @@ class Collection(object):
         if c:
             self.graph.add((c, RDF.first, value))
         else:
-            raise IndexError, key
+            raise IndexError(key)
 
 
     def __delitem__(self, key):
         """
         >>> from rdflib.namespace import RDF, RDFS
-        >>> from rdflib import Graph
         >>> from pprint import pformat
         >>> g=Graph()
         >>> a=BNode('foo')
@@ -241,15 +240,15 @@ if __name__=="__main__":
 
     try:
         del c[500]
-    except IndexError, i:
+    except IndexError as i:
         pass
 
     c.append(Literal("5"))
 
-    print list(c)
+    print(list(c))
 
     for i in c:
-        print i
+        print(i)
 
     del c[3]
 

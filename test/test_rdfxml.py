@@ -2,8 +2,8 @@ import unittest
 
 import os
 import os.path
-from urllib import url2pathname
-from urllib2 import urlopen
+from urllib.request import url2pathname
+from urllib.request import urlopen
 
 from rdflib.namespace import RDF, RDFS
 from rdflib.term import URIRef
@@ -34,10 +34,11 @@ class TestStore(Graph):
         super(TestStore, self).__init__()
         self.expected = expected
 
-    def add(self, (s, p, o)):
+    def add(self, xxx_todo_changeme):
+        (s, p, o) = xxx_todo_changeme
         if not isinstance(s, BNode) and not isinstance(o, BNode):
             if not (s, p, o) in self.expected:
-                m = u"Triple not in expected result: %s, %s, %s" % (s.n3(), p.n3(), o.n3())
+                m = "Triple not in expected result: %s, %s, %s" % (s.n3(), p.n3(), o.n3())
                 if verbose: write(m)
                 #raise Exception(m)
         super(TestStore, self).add((s, p, o))
@@ -52,7 +53,7 @@ def cached_file(url):
 
     fpath = os.path.join(CACHE_DIR, fname)
     if not os.path.exists(fpath):
-        print "%s does not exist, fetching from %s"%(fpath,url)
+        print("%s does not exist, fetching from %s"%(fpath,url))
         folder=os.path.dirname(fpath)
         if not os.path.exists(folder): 
             os.makedirs(folder)
@@ -74,7 +75,7 @@ def resolve(rel):
     return RDFCOREBASE + rel
 
 def _testPositive(uri, manifest):
-    if verbose: write(u"TESTING: %s" % uri)
+    if verbose: write("TESTING: %s" % uri)
     result = 0 # 1=failed, 0=passed
     inDoc = first(manifest.objects(uri, TEST["inputDocument"]))
     outDoc = first(manifest.objects(uri, TEST["outputDocument"]))
@@ -92,7 +93,7 @@ def _testPositive(uri, manifest):
 
     try:
         store.parse(cached_file(inDoc), publicID=inDoc, format=format)
-    except ParserError, pe:
+    except ParserError as pe:
         write("Failed '")
         write(inDoc)
         write("' failed with")
@@ -104,7 +105,7 @@ def _testPositive(uri, manifest):
         result = 1
     else:
         if not store.isomorphic(expected):
-            write(u"""Failed: '%s'""" % uri)
+            write("""Failed: '%s'""" % uri)
             if verbose:
                 write("""  In:\n""")
                 for s, p, o in store:
@@ -116,7 +117,7 @@ def _testPositive(uri, manifest):
     return result
 
 def _testNegative(uri, manifest):
-    if verbose: write(u"TESTING: %s" % uri)
+    if verbose: write("TESTING: %s" % uri)
     result = 0 # 1=failed, 0=passed
     inDoc = first(manifest.objects(uri, TEST["inputDocument"]))
     store = Graph()
@@ -131,11 +132,11 @@ def _testNegative(uri, manifest):
         else:
             format = "xml"
         store.parse(cached_file(inDoc), publicID=inDoc, format=format)
-    except ParserError, pe:
+    except ParserError as pe:
         results.add((test, RDF.type, RESULT["PassingRun"]))
         #pass
     else:
-        write(u"""Failed: '%s'""" % uri)
+        write("""Failed: '%s'""" % uri)
         results.add((test, RDF.type, RESULT["FailingRun"]))
         result = 1
     return result
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     import sys, getopt
     try:
         optlist, args = getopt.getopt(sys.argv[1:], 'h:', ["help"])
-    except getopt.GetoptError, msg:
+    except getopt.GetoptError as msg:
         write(msg)
         #usage()
 
@@ -213,15 +214,15 @@ if __name__ == "__main__":
         for arg in sys.argv[1:]:
             verbose = 1
             case = URIRef(arg)
-            write(u"Testing: %s" % case)
+            write("Testing: %s" % case)
             if (case, RDF.type, TEST["PositiveParserTest"]) in manifest:
                 result = _testPositive(case, manifest)
-                write(u"Positive test %s" % ["PASSED", "FAILED"][result])
+                write("Positive test %s" % ["PASSED", "FAILED"][result])
             elif (case, RDF.type, TEST["NegativeParserTest"]) in manifest:
                 result = _testNegative(case, manifest)
-                write(u"Negative test %s" % ["PASSED", "FAILED"][result])
+                write("Negative test %s" % ["PASSED", "FAILED"][result])
             else:
-                write(u"%s not ??" % case)
+                write("%s not ??" % case)
 
         if len(argv)<=1:
             unittest.main()

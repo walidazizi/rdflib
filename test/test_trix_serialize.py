@@ -42,7 +42,7 @@ class TestTrixSerialize(unittest.TestCase):
       
       r = g.serialize(format='trix')
       g3 = ConjunctiveGraph()
-      from StringIO import StringIO
+      from io import StringIO
 
       g3.parse(StringIO(r), format='trix')
 

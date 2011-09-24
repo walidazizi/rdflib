@@ -13,7 +13,6 @@ XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
 EX = Namespace("http://example.com/")
 
 pyValues = '''\
-u"foo"
 "foo"
 Literal("foo")
 Literal("foo", datatype=XSD['string'])

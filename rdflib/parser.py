@@ -11,19 +11,16 @@ want to do so through the Graph class parse method.
 """
 
 import os
-import __builtin__
+#~ import builtins
 import warnings
-from urllib import pathname2url, url2pathname
-from urllib2 import urlopen, Request, HTTPError
-from urlparse import urljoin
-from StringIO import StringIO
+from urllib.request import pathname2url, url2pathname
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError
+from urllib.parse import urljoin
+from io import StringIO
 from xml.sax import xmlreader
 from xml.sax.saxutils import prepare_input_source
 import types
-try:
-    _StringTypes = (types.StringType, types.UnicodeType)
-except AttributeError:
-    _StringTypes = (types.StringType,)
 
 from rdflib import __version__
 from rdflib.term import URIRef
@@ -56,16 +53,12 @@ class StringInputSource(InputSource):
 
     def __init__(self, value, system_id=None):
         super(StringInputSource, self).__init__(system_id)
+        
+        #~ stream = StringIO(value)
         stream = StringIO(value)
         self.setByteStream(stream)
-        # TODO:
-        #   encoding = value.encoding
-        #   self.setEncoding(encoding)
 
-
-headers = {
-    'User-agent': 'rdflib-%s (http://rdflib.net/; eikeon@eikeon.com)' % __version__
-    }
+headers = {'User-agent': 'rdflib-%s (http://rdflib.net/; eikeon@eikeon.com)' % __version__}
 
 
 class URLInputSource(InputSource):
@@ -90,13 +83,13 @@ class URLInputSource(InputSource):
         
         req = Request(system_id, None, myheaders)
         try:
-            file = urlopen(req)
-        except HTTPError, e:
+            file_input = urlopen(req)
+        except HTTPError as e:
             # TODO:
             raise Exception('"%s" while trying to open "%s"' % (e, self.url))
-        self.content_type = file.info().get('content-type')
+        self.content_type = file_input.info().get('content-type')
         self.content_type = self.content_type.split(";", 1)[0]
-        self.setByteStream(file)
+        self.setByteStream(file_input)
         # TODO: self.setEncoding(encoding)
 
     def __repr__(self):
@@ -108,20 +101,20 @@ class FileInputSource(InputSource):
     TODO:
     """
 
-    def __init__(self, file):
+    def __init__(self, file_input):
         base = urljoin("file:", pathname2url(os.getcwd()))
-        system_id = URIRef(file.name, base=base)
+        system_id = URIRef(file_input.name, base=base)
         super(FileInputSource, self).__init__(system_id)
-        self.file = file
-        self.setByteStream(file)
+        self.file_input = file_input
+        self.setByteStream(file_input)
         # TODO: self.setEncoding(encoding)
 
     def __repr__(self):
-        return `self.file`
+        return repr(self.file_input)
 
 
 def create_input_source(source=None, publicID=None,
-                        location=None, file=None, data=None, format=None):
+                        location=None, file_input=None, data=None, format=None):
     """
     Return an appropriate InputSource instance for the given
     parameters.
@@ -136,7 +129,7 @@ def create_input_source(source=None, publicID=None,
         if isinstance(source, InputSource):
             input_source = source
         else:
-            if isinstance(source, _StringTypes):
+            if isinstance(source, str):
                 location = source
             elif hasattr(source, "read") and not isinstance(source, Namespace):
                 f = source
@@ -150,19 +143,23 @@ def create_input_source(source=None, publicID=None,
     if location is not None:
         base = urljoin("file:", "%s/" % pathname2url(os.getcwd()))
         absolute_location = URIRef(location, base=base).defrag()
+        
+        #~ print('--------Parser.create_input_source--------------')
+        #~ print(base)
+        #~ print(absolute_location)
+        #~ print()
+        
         if absolute_location.startswith("file:///"):
             filename = url2pathname(absolute_location.replace("file:///", "/"))
-            file = __builtin__.file(filename, "rb")
+            file_input = open(filename, "r")
         else:
             input_source = URLInputSource(absolute_location, format)
         publicID = publicID or absolute_location
 
-    if file is not None:
-        input_source = FileInputSource(file)
+    if file_input is not None:
+        input_source = FileInputSource(file_input)
 
     if data is not None:
-        if isinstance(data, unicode):
-            data = data.encode('utf-8')
         input_source = StringInputSource(data)
 
     if input_source is None:
@@ -175,6 +172,7 @@ def create_input_source(source=None, publicID=None,
         id = input_source.getPublicId()
         if id is None:
             input_source.setPublicId("")
+        
         return input_source
 
 

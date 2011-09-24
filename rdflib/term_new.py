@@ -44,7 +44,7 @@ except ImportError:
 #from rdflib.exceptions import Error
 
 
-class Node(object):
+class Node:
     """
     A Node in the Graph.
     """
@@ -52,16 +52,22 @@ class Node(object):
     __slots__ = ()
 
 
-class Identifier(Node, str): # we allow Identifiers to be Nodes in our Graph
+class Identifier(Node): # we allow Identifiers to be Nodes in our Graph
     """
     See http://www.w3.org/2002/07/rdf-identifer-terminology/
     regarding choice of terminology.
     """
 
-    __slots__ = ()
+    __slots__ = '_id'
 
-    def __new__(cls, value):
-        return str.__new__(cls, value)
+    def __init__(self, value):
+        
+        super(Identifier, self).__init__()
+        
+        self._id = str(value)
+    
+    def __str__(self):
+        return self._id
     
 class URIRef(Identifier):
     """
@@ -70,7 +76,7 @@ class URIRef(Identifier):
 
     __slots__ = ()
 
-    def __new__(cls, value, base=None):
+    def __init__(self, value, base=None):
         if base is not None:
             ends_in_hash = value.endswith("#")
             value = urljoin(base, value, allow_fragments=1)
@@ -80,7 +86,7 @@ class URIRef(Identifier):
         #if normalize and value and value != normalize("NFC", value):
         #   raise Error("value must be in NFC normalized form.")
         
-        return str.__new__(cls, value)
+        super(URIRef, self).__init__(value)
 
     def n3(self):
         return "<%s>" % self
@@ -118,7 +124,7 @@ class URIRef(Identifier):
     def __getnewargs__(self):
         return (str(self), )
 
-
+    
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -156,7 +162,16 @@ class URIRef(Identifier):
         d.update("U".encode())
         return d.hexdigest()
 
-
+    def __add__(self, value):
+        """
+        Method used to generate a string.
+        When an operation like URIRef + 'string' is called, it returns
+        the string version of URIRef + the value to add.
+        
+        We need this method since URIRef is no longer a subclass of string, but it's a useful method to have an uri with an added part.
+        """
+        
+        return str(self)+str(value)
 
 def _letter():
     while True:
@@ -183,7 +198,7 @@ class BNode(Identifier):
     __slots__ = ()
 
 
-    def __new__(cls, value=None, 
+    def __init__(self, value=None, 
                 _sn_gen=_serial_number_generator(), _prefix=_unique_id()):
         """
         # only store implementations should pass in a value
@@ -204,7 +219,7 @@ class BNode(Identifier):
             pass #assert is_ncname(unicode(value)), "BNode identifiers
                  #must be valid NCNames"
 
-        return Identifier.__new__(cls, value)
+        super(BNode, self).__init__(value)
 
     def n3(self):
         return "_:%s" % self
@@ -303,9 +318,9 @@ class Literal(Identifier):
     False
     """
 
-    __slots__ = ("language", "datatype", "_cmp_value")
+    __slots__ = "language", "datatype", "_cmp_value"
 
-    def __new__(cls, value, lang=None, datatype=None):
+    def __init__(self, value, lang=None, datatype=None):
         if lang is not None and datatype is not None:
             raise TypeError("A Literal can only have one of lang or datatype, "
                "per http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal")
@@ -323,12 +338,14 @@ class Literal(Identifier):
         #~ except UnicodeDecodeError:
             #~ inst = str.__new__(cls, value, 'utf-8')
         
-        inst = str.__new__(cls, value)
+        #~ print('value literal: ', value, ' ', type(value))
         
-        inst.language = lang
-        inst.datatype = datatype
-        inst._cmp_value = inst._toCompareValue()
-        return inst
+        super(Literal, self).__init__(value)
+        
+        self.language = lang
+        self.datatype = datatype
+        self._cmp_value = Literal._toCompareValue(self)
+        
 
     def __reduce__(self):
         return (Literal, (str(self), self.language, self.datatype),)
@@ -350,8 +367,10 @@ class Literal(Identifier):
         """
 
         py = self.toPython()
+        
         if isinstance(py, Literal):
-            s = super(Literal, self).__add__(val)
+            #py is a string and we have to concatenate val
+            s = str(py)+ str(val)
             return Literal(s, self.language, self.datatype)
         else:
             return py + val
@@ -698,7 +717,7 @@ class Literal(Identifier):
         #~ print('_quote_encode')
         #~ print(self)
         
-        return '"%s"' % self.replace('\\', '\\\\').replace('\n','\\n').replace('"', '\\"')
+        return '"%s"' % str(self).replace('\\', '\\\\').replace('\n','\\n').replace('"', '\\"')
         
         #~ if "\n" in self:
             #~ # Triple quote this string.
@@ -733,12 +752,10 @@ class Literal(Identifier):
         """
         convFunc = _toPythonMapping.get(self.datatype, None)
 
-        #~ If the literal specify the datatype, we use the equivalent type in Python
         if convFunc:
-            rt = convFunc(self)
+            rt = convFunc(str(self))
         else:
-            #~ If no datatype is specified, we try to convert it to a string
-            rt = str(self)
+            rt = self
         return rt
 
     def _toCompareValue(self):
@@ -827,10 +844,10 @@ XSDToPython = {
     URIRef(_XSD_PFX+'time')            : _strToTime,
     URIRef(_XSD_PFX+'date')            : _strToDate,
     URIRef(_XSD_PFX+'dateTime')        : _strToDateTime,
-    URIRef(_XSD_PFX+'string')            : str,
-    URIRef(_XSD_PFX+'normalizedString')   : str,
-    URIRef(_XSD_PFX+'token')              : str,
-    URIRef(_XSD_PFX+'language')        : str,
+    URIRef(_XSD_PFX+'string')            : None,
+    URIRef(_XSD_PFX+'normalizedString')   : None,
+    URIRef(_XSD_PFX+'token')              : None,
+    URIRef(_XSD_PFX+'language')        : None,
     URIRef(_XSD_PFX+'boolean')          : bool, #lambda i:i.lower() in ['1','true'],
     URIRef(_XSD_PFX+'decimal')          : float,
     URIRef(_XSD_PFX+'integer')          : int,
@@ -849,7 +866,7 @@ XSDToPython = {
     URIRef(_XSD_PFX+'float')              : float,
     URIRef(_XSD_PFX+'double')            : float,
     URIRef(_XSD_PFX+'base64Binary')    : base64.b64decode,
-    URIRef(_XSD_PFX+'anyURI')            : str,
+    URIRef(_XSD_PFX+'anyURI')            : None,
 }
 
 _toPythonMapping = {}
@@ -915,5 +932,4 @@ class Statement(Node, tuple):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-
-
+    

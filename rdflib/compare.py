@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 A collection of utilities for canonicalizing and inspecting graphs.
 
@@ -11,20 +10,20 @@ graphs. Use with care!
 Example of comparing two graphs::
 
     >>> g1 = Graph().parse(format='n3', data='''
-    ...     @prefix : <http://example.org/ns#> .
-    ...     <http://example.org> :rel
-    ...         <http://example.org/same>,
-    ...         [ :label "Same" ],
-    ...         <http://example.org/a>,
-    ...         [ :label "A" ] .
+    ...  @prefix : <http://example.org/ns#> .
+    ...  <http://example.org> :rel
+    ...      <http://example.org/same>,
+    ...      [ :label "Same" ],
+    ...      <http://example.org/a>,
+    ...      [ :label "A" ] .
     ... ''')
     >>> g2 = Graph().parse(format='n3', data='''
-    ...     @prefix : <http://example.org/ns#> .
-    ...     <http://example.org> :rel
-    ...         <http://example.org/same>,
-    ...         [ :label "Same" ],
-    ...         <http://example.org/b>,
-    ...         [ :label "B" ] .
+    ...  @prefix : <http://example.org/ns#> .
+    ...  <http://example.org> :rel
+    ...      <http://example.org/same>,
+    ...      [ :label "Same" ],
+    ...      <http://example.org/b>,
+    ...      [ :label "B" ] .
     ... ''')
     >>>
     >>> iso1 = to_isomorphic(g1)
@@ -42,8 +41,8 @@ Diff the two graphs::
 Present in both::
 
     >>> def dump_nt_sorted(g):
-    ...     for l in sorted(g.serialize(format='nt').splitlines()):
-    ...         if l: print l
+    ...  for l in sorted(g.serialize(format='nt').splitlines()):
+    ...      if l: print (l)
 
     >>> dump_nt_sorted(in_both)
     <http://example.org> <http://example.org/ns#rel> <http://example.org/same> .
@@ -93,6 +92,7 @@ class IsomorphicGraph(ConjunctiveGraph):
             return False
         elif list(self) == list(other):
             return True # TODO: really generally cheaper?
+        
         return self.internal_hash() == other.internal_hash()
 
     def __ne__(self, other):
@@ -105,6 +105,7 @@ class IsomorphicGraph(ConjunctiveGraph):
         scenario with the Memory store for rdflib which requires a hash lookup
         in order to return a generator of triples.
         """
+        
         return _TripleCanonicalizer(self).to_hash()
 
 
@@ -115,12 +116,54 @@ class _TripleCanonicalizer(object):
         self.hashfunc = hashfunc
 
     def to_hash(self):
-        return self.hashfunc(tuple(sorted(
-                map(self.hashfunc, self.canonical_triples()) )))
+        #~ return self.hashfunc(
+                        #~ tuple(
+                            #~ sorted( #Sort the triples by their hash
+                                #~ map(self.hashfunc, self.canonical_triples()) #Create a list with the hash of every tuple
+                            #~ )
+                        #~ )
+                    #~ )
+        
+        
+        '''
+        I generate a string that represent the graph and all its triples.
+        The string is built as this:
+            . for every element in a triple:
+                . add a dummy string if the element is a BNode
+                . add the string representation of the element and its hash if it is a normal node
+        
+        For normal nodes, I add the hash since if I rely just on the string representation, 1 and "1" would be the same.
+        '''
+        hashed_graph = ''
+        
+        for triple in self.canonical_triples():
+            
+            #~ Check if there are any BNodes
+            for index in range(len(triple)):
+                
+                #~ If it's a BNode, I insert a dummy string instead of its identificator, otherwise it would appear that all BNodes are unique valid Nodes
+                if isinstance(triple[index], BNode):
+                    hashed_graph = hashed_graph + 'blanknode'
+                else:
+                    hashed_graph = hashed_graph + str(triple[index]) + str(hash(triple[index]))
+        
+        #~ Ultimatly, I hash the string that represent the graph
+        hashed_graph = hash(hashed_graph)
+        
+        return hashed_graph
 
     def canonical_triples(self):
-        for triple in self.graph:
-            yield tuple(self._canonicalize_bnodes(triple))
+        #~ I have to canonicalize the blank nodes in the graph
+        #~ for triple in self.graph:
+            #~ yield tuple(self._canonicalize_bnodes(triple))
+        
+        #~ First, order the graph
+        graph_sorted = sorted(self.graph, key=lambda triple: 'blanknode' if isinstance(triple[2],BNode) else triple[2])
+        graph_sorted = sorted(graph_sorted, key=lambda triple: triple[1])
+        graph_sorted = sorted(graph_sorted, key=lambda triple: 'blanknode' if isinstance(triple[0],BNode) else triple[0])
+        
+        for triple in graph_sorted:
+            yield triple
 
     def _canonicalize_bnodes(self, triple):
         for term in triple:
@@ -130,6 +173,7 @@ class _TripleCanonicalizer(object):
                 yield term
 
     def _canonicalize(self, term, done=False):
+        #~ Return the hash of a sorted triple
         return self.hashfunc(tuple(sorted(self._vhashtriples(term, done))))
 
     def _vhashtriples(self, term, done):
@@ -161,25 +205,25 @@ def isomorphic(graph1, graph2):
     Examples::
 
         >>> g1 = Graph().parse(format='n3', data='''
-        ...     @prefix : <http://example.org/ns#> .
-        ...     <http://example.org> :rel <http://example.org/a> .
-        ...     <http://example.org> :rel <http://example.org/b> .
-        ...     <http://example.org> :rel [ :label "A bnode." ] .
+        ...  @prefix : <http://example.org/ns#> .
+        ...  <http://example.org> :rel <http://example.org/a> .
+        ...  <http://example.org> :rel <http://example.org/b> .
+        ...  <http://example.org> :rel [ :label "A bnode." ] .
         ... ''')
         >>> g2 = Graph().parse(format='n3', data='''
-        ...     @prefix ns: <http://example.org/ns#> .
-        ...     <http://example.org> ns:rel [ ns:label "A bnode." ] .
-        ...     <http://example.org> ns:rel <http://example.org/b>,
-        ...             <http://example.org/a> .
+        ...  @prefix ns: <http://example.org/ns#> .
+        ...  <http://example.org> ns:rel [ ns:label "A bnode." ] .
+        ...  <http://example.org> ns:rel <http://example.org/b>,
+        ...          <http://example.org/a> .
         ... ''')
         >>> isomorphic(g1, g2)
         True
 
         >>> g3 = Graph().parse(format='n3', data='''
-        ...     @prefix : <http://example.org/ns#> .
-        ...     <http://example.org> :rel <http://example.org/a> .
-        ...     <http://example.org> :rel <http://example.org/b> .
-        ...     <http://example.org> :rel <http://example.org/c> .
+        ...  @prefix : <http://example.org/ns#> .
+        ...  <http://example.org> :rel <http://example.org/a> .
+        ...  <http://example.org> :rel <http://example.org/b> .
+        ...  <http://example.org> :rel <http://example.org/c> .
         ... ''')
         >>> isomorphic(g1, g3)
         False
@@ -216,7 +260,7 @@ def _md5_hash(t):
         if isinstance(i, tuple):
             h.update(_md5_hash(i))
         else:
-            h.update(unicode(i).encode("utf8"))
+            h.update("%s" % i)
     return h.hexdigest()
 
 

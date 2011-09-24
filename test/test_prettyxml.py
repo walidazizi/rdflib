@@ -4,8 +4,9 @@ from rdflib.namespace import RDFS
 from rdflib.plugins.serializers.rdfxml import PrettyXMLSerializer
 
 from rdflib.graph import ConjunctiveGraph
-from StringIO import StringIO
+from io import StringIO
 
+import unittest
 
 class SerializerTestBase(object):
 
@@ -15,9 +16,13 @@ class SerializerTestBase(object):
         graph = ConjunctiveGraph()
         graph.parse(data=self.testContent, format=self.testContentFormat)
         self.sourceGraph = graph
+        
+        #~ print('setup')
+        #~ print(self.sourceGraph)
 
     def test_serialize_and_reparse(self):
         reparsedGraph = serialize_and_load(self.sourceGraph, self.serializer)
+        
         _assert_equal_graphs(self.sourceGraph, reparsedGraph)
 
     def test_multiple(self):
@@ -51,15 +56,21 @@ def _mangled_copy(g):
     return gcopy
 
 
-def serialize(sourceGraph, makeSerializer, getValue=True):
-    serializer = makeSerializer(sourceGraph)
+def serialize(sourceGraph, serializer, getValue=True):
+    
+    serializer = serializer(sourceGraph)
     stream = StringIO()
     serializer.serialize(stream)
     return getValue and stream.getvalue() or stream
 
-def serialize_and_load(sourceGraph, makeSerializer):
-    stream = serialize(sourceGraph, makeSerializer, False)
+def serialize_and_load(sourceGraph, serializer):
+    stream = serialize(sourceGraph, serializer, False)
     stream.seek(0)
+    
+    #~ print('--------\nserialize_and_load')
+    #~ print(stream.getvalue())
+    stream.seek(0)
+    
     reparsedGraph = ConjunctiveGraph()
     reparsedGraph.load(stream)
     return reparsedGraph
@@ -137,3 +148,19 @@ def _assert_expected_object_types_for_predicates(graph, predicates, types):
                     "Bad type %s for object when predicate is <%s>." % (type(o), p)
 
 
+if __name__ == '__main__':
+	
+	#~ import pdb
+	#~ pdb.set_trace ()	
+	
+	test = TestPrettyXmlSerializer()
+	test.setup()
+	
+	test.test_serialize_and_reparse()
+	test.test_multiple()
+	
+	test.test_result_fragments()
+	test.test_subClassOf_objects()
+	
+	#~ pdb.post_mortem()
+	#~ unittest.main()

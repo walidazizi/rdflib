@@ -8,3 +8,4 @@ docs/_build
 .coverage
 coverage
 nosetests.xml
+MANIFEST

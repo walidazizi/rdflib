@@ -329,7 +329,7 @@ class Literal(Identifier):
         >>> Literal(1) + 1
         2L
         >>> Literal("1") + "1"
-        rdflib.term.Literal(u'11')
+        u'11'
         """
 
         py = self.toPython()
@@ -734,6 +734,8 @@ class Literal(Identifier):
                 return unicode(rt)
             else:
                 return (unicode(rt), rt.datatype, rt.language)
+        elif isinstance(rt, unicode) and self.language is not None:
+            return (rt, self.datatype, self.language)
         return rt
 
     def md5_term_hash(self):

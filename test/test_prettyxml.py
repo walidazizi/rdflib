@@ -51,10 +51,10 @@ def _mangled_copy(g):
     return gcopy
 
 
-def serialize(sourceGraph, makeSerializer, getValue=True):
+def serialize(sourceGraph, makeSerializer, getValue=True, extra_args={}):
     serializer = makeSerializer(sourceGraph)
     stream = StringIO()
-    serializer.serialize(stream)
+    serializer.serialize(stream, **extra_args)
     return getValue and stream.getvalue() or stream
 
 def serialize_and_load(sourceGraph, makeSerializer):
@@ -122,12 +122,20 @@ class TestPrettyXmlSerializer(SerializerTestBase):
         #assert '<rdfs:subClassOf>' in rdfXml, onlyBNodesMsg
         #assert not '<rdfs:subClassOf ' in rdfXml, onlyBNodesMsg
 
+    def test_result_fragments_with_base(self):
+        rdfXml = serialize(self.sourceGraph, self.serializer, 
+                    extra_args={'base':"http://example.org/", 'xml_base':"http://example.org/"})
+        assert 'xml:base="http://example.org/"' in rdfXml
+        assert '<Test rdf:about="data/a">' in rdfXml
+        assert '<rdf:Description rdf:about="data/b">' in rdfXml
+        assert '<value rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</value>' in rdfXml
+        assert '<BNode rdf:nodeID="' in rdfXml, "expected one identified bnode in serialized graph"
+
     def test_subClassOf_objects(self):
         reparsedGraph = serialize_and_load(self.sourceGraph, self.serializer)
         _assert_expected_object_types_for_predicates(reparsedGraph,
                 [RDFS.seeAlso, RDFS.subClassOf],
                 [URIRef, BNode])
-
 
 def _assert_expected_object_types_for_predicates(graph, predicates, types):
     for s, p, o in graph:

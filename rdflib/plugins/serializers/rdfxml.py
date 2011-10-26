@@ -47,6 +47,9 @@ class XMLSerializer(Serializer):
 
         # startRDF
         write('<rdf:RDF\n')
+        # If provided, write xml:base attribute for the RDF
+        if "xml_base" in args:
+            write('   xml:base="%s"\n' % args['xml_base'])
         # TODO: assert(namespaces["http://www.w3.org/1999/02/22-rdf-syntax-ns#"]=='rdf')
         bindings = list(self.__bindings())
         bindings.sort()
@@ -116,6 +119,7 @@ class XMLSerializer(Serializer):
 
 
 XMLLANG = "http://www.w3.org/XML/1998/namespacelang"
+XMLBASE = "http://www.w3.org/XML/1998/namespacebase"
 OWL_NS = Namespace('http://www.w3.org/2002/07/owl#')
 
 # TODO:
@@ -150,6 +154,8 @@ class PrettyXMLSerializer(Serializer):
             namespaces[prefix] = namespace
         namespaces["rdf"] = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
         writer.push(RDF.RDF)
+        if "xml_base" in args:
+            writer.attribute(XMLBASE, args["xml_base"])
         writer.namespaces(namespaces.iteritems())
 
         # Write out subjects that can not be inline
@@ -199,7 +205,9 @@ class PrettyXMLSerializer(Serializer):
             writer.push(element)
             if isinstance(subject, BNode):
                 def subj_as_obj_more_than(ceil):
-                    return more_than(store.triples((None, None, subject)), ceil)
+                    return True 
+                    # more_than(store.triples((None, None, subject)), ceil)
+                
                 #here we only include BNode labels if they are referenced
                 #more than once (this reduces the use of redundant BNode identifiers)
                 if subj_as_obj_more_than(1):
